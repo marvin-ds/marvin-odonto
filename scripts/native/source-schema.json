@@ -1,0 +1,668 @@
+{
+  "app_config": {
+    "app_name": {
+      "type": "string | null",
+      "optional": true
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "super_admin_emails": {
+      "type": "string[] | null",
+      "optional": true
+    },
+    "system_settings": {
+      "type": "Json | null",
+      "optional": true
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "clinica": {
+    "cnpj": {
+      "type": "string | null",
+      "optional": true
+    },
+    "cor_primaria": {
+      "type": "string | null",
+      "optional": true
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "cro_responsavel": {
+      "type": "string | null",
+      "optional": true
+    },
+    "email": {
+      "type": "string | null",
+      "optional": true
+    },
+    "endereco": {
+      "type": "Json | null",
+      "optional": true
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "logo_url": {
+      "type": "string | null",
+      "optional": true
+    },
+    "mrr": {
+      "type": "number",
+      "optional": true
+    },
+    "nome": {
+      "type": "string",
+      "optional": false
+    },
+    "owner_email": {
+      "type": "string | null",
+      "optional": true
+    },
+    "owner_nome": {
+      "type": "string | null",
+      "optional": true
+    },
+    "owner_telefone": {
+      "type": "string | null",
+      "optional": true
+    },
+    "plano": {
+      "type": "Database[\"public\"][\"Enums\"][\"plano_enum\"]",
+      "optional": true
+    },
+    "slug": {
+      "type": "string | null",
+      "optional": true
+    },
+    "status": {
+      "type": "Database[\"public\"][\"Enums\"][\"status_clinica_enum\"]",
+      "optional": true
+    },
+    "status_cobranca": {
+      "type": "Database[\"public\"][\"Enums\"][\"status_cobranca_enum\"]",
+      "optional": true
+    },
+    "telefone": {
+      "type": "string | null",
+      "optional": true
+    },
+    "trial_ate": {
+      "type": "string | null",
+      "optional": true
+    },
+    "ultimo_acesso": {
+      "type": "string | null",
+      "optional": true
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    },
+    "valor_mensal": {
+      "type": "number",
+      "optional": true
+    }
+  },
+  "consulta": {
+    "clinica_id": {
+      "type": "string",
+      "optional": false
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "data": {
+      "type": "string",
+      "optional": false
+    },
+    "duracao_minutos": {
+      "type": "number",
+      "optional": true
+    },
+    "hora": {
+      "type": "string",
+      "optional": false
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "observacoes": {
+      "type": "string | null",
+      "optional": true
+    },
+    "paciente_id": {
+      "type": "string",
+      "optional": false
+    },
+    "paciente_nome": {
+      "type": "string | null",
+      "optional": true
+    },
+    "procedimentos": {
+      "type": "Json | null",
+      "optional": true
+    },
+    "profissional_id": {
+      "type": "string",
+      "optional": false
+    },
+    "profissional_nome": {
+      "type": "string | null",
+      "optional": true
+    },
+    "prontuario": {
+      "type": "string | null",
+      "optional": true
+    },
+    "status": {
+      "type": "Database[\"public\"][\"Enums\"][\"status_consulta_enum\"]",
+      "optional": true
+    },
+    "tipo": {
+      "type": "Database[\"public\"][\"Enums\"][\"tipo_consulta_enum\"]",
+      "optional": true
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    },
+    "valor_total": {
+      "type": "number | null",
+      "optional": true
+    }
+  },
+  "financeiro": {
+    "categoria": {
+      "type": "string | null",
+      "optional": true
+    },
+    "clinica_id": {
+      "type": "string",
+      "optional": false
+    },
+    "consulta_id": {
+      "type": "string | null",
+      "optional": true
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "data": {
+      "type": "string",
+      "optional": false
+    },
+    "descricao": {
+      "type": "string",
+      "optional": false
+    },
+    "forma_pagamento": {
+      "type": "string | null",
+      "optional": true
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "orcamento_id": {
+      "type": "string | null",
+      "optional": true
+    },
+    "paciente_id": {
+      "type": "string | null",
+      "optional": true
+    },
+    "parcela_atual": {
+      "type": "number",
+      "optional": true
+    },
+    "status": {
+      "type": "Database[\"public\"][\"Enums\"][\"status_financeiro_enum\"]",
+      "optional": true
+    },
+    "tipo": {
+      "type": "Database[\"public\"][\"Enums\"][\"tipo_financeiro_enum\"]",
+      "optional": true
+    },
+    "total_parcelas": {
+      "type": "number",
+      "optional": true
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    },
+    "valor": {
+      "type": "number",
+      "optional": false
+    },
+    "vencimento": {
+      "type": "string | null",
+      "optional": true
+    }
+  },
+  "historico_clinica": {
+    "anexos": {
+      "type": "string[] | null",
+      "optional": true
+    },
+    "clinica_id": {
+      "type": "string",
+      "optional": false
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "data": {
+      "type": "string",
+      "optional": false
+    },
+    "descricao": {
+      "type": "string",
+      "optional": false
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "paciente_id": {
+      "type": "string",
+      "optional": false
+    },
+    "profissional_id": {
+      "type": "string | null",
+      "optional": true
+    },
+    "profissional_nome": {
+      "type": "string | null",
+      "optional": true
+    },
+    "tipo": {
+      "type": "Database[\"public\"][\"Enums\"][\"tipo_historico_enum\"]",
+      "optional": false
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "membro_equipe": {
+    "ativo": {
+      "type": "boolean",
+      "optional": true
+    },
+    "clinica_id": {
+      "type": "string",
+      "optional": false
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "email": {
+      "type": "string",
+      "optional": false
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "must_change_password": {
+      "type": "boolean",
+      "optional": true
+    },
+    "nome": {
+      "type": "string",
+      "optional": false
+    },
+    "role": {
+      "type": "Database[\"public\"][\"Enums\"][\"role_enum\"]",
+      "optional": true
+    },
+    "ultimo_login": {
+      "type": "string | null",
+      "optional": true
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    },
+    "user_id": {
+      "type": "string | null",
+      "optional": true
+    }
+  },
+  "orcamento": {
+    "clinica_id": {
+      "type": "string",
+      "optional": false
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "data": {
+      "type": "string",
+      "optional": false
+    },
+    "desconto_pct": {
+      "type": "number",
+      "optional": true
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "itens": {
+      "type": "Json | null",
+      "optional": true
+    },
+    "numero": {
+      "type": "string | null",
+      "optional": true
+    },
+    "observacoes": {
+      "type": "string | null",
+      "optional": true
+    },
+    "paciente_id": {
+      "type": "string",
+      "optional": false
+    },
+    "paciente_nome": {
+      "type": "string | null",
+      "optional": true
+    },
+    "parcelas": {
+      "type": "number",
+      "optional": true
+    },
+    "profissional_id": {
+      "type": "string | null",
+      "optional": true
+    },
+    "status": {
+      "type": "Database[\"public\"][\"Enums\"][\"status_orcamento_enum\"]",
+      "optional": true
+    },
+    "total": {
+      "type": "number | null",
+      "optional": true
+    },
+    "total_com_desconto": {
+      "type": "number | null",
+      "optional": true
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    },
+    "validade": {
+      "type": "string | null",
+      "optional": true
+    }
+  },
+  "paciente": {
+    "alergias": {
+      "type": "string[] | null",
+      "optional": true
+    },
+    "ativo": {
+      "type": "boolean",
+      "optional": true
+    },
+    "clinica_id": {
+      "type": "string",
+      "optional": false
+    },
+    "convenio": {
+      "type": "string | null",
+      "optional": true
+    },
+    "cpf": {
+      "type": "string | null",
+      "optional": true
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "data_nascimento": {
+      "type": "string | null",
+      "optional": true
+    },
+    "doencas_preexistentes": {
+      "type": "string | null",
+      "optional": true
+    },
+    "email": {
+      "type": "string | null",
+      "optional": true
+    },
+    "endereco": {
+      "type": "Json | null",
+      "optional": true
+    },
+    "foto_url": {
+      "type": "string | null",
+      "optional": true
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "medicamentos_uso": {
+      "type": "string[] | null",
+      "optional": true
+    },
+    "nome": {
+      "type": "string",
+      "optional": false
+    },
+    "numero_convenio": {
+      "type": "string | null",
+      "optional": true
+    },
+    "observacoes_anamnese": {
+      "type": "string | null",
+      "optional": true
+    },
+    "profissao": {
+      "type": "string | null",
+      "optional": true
+    },
+    "rg": {
+      "type": "string | null",
+      "optional": true
+    },
+    "telefone": {
+      "type": "string | null",
+      "optional": true
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "procedimento": {
+    "ativo": {
+      "type": "boolean",
+      "optional": true
+    },
+    "categoria": {
+      "type": "string | null",
+      "optional": true
+    },
+    "clinica_id": {
+      "type": "string",
+      "optional": false
+    },
+    "codigo_tuss": {
+      "type": "string | null",
+      "optional": true
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "descricao": {
+      "type": "string | null",
+      "optional": true
+    },
+    "duracao_minutos": {
+      "type": "number",
+      "optional": true
+    },
+    "especialidade": {
+      "type": "string | null",
+      "optional": true
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "nome": {
+      "type": "string",
+      "optional": false
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    },
+    "valor": {
+      "type": "number",
+      "optional": false
+    }
+  },
+  "profissional": {
+    "ativo": {
+      "type": "boolean",
+      "optional": true
+    },
+    "clinica_id": {
+      "type": "string",
+      "optional": false
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "cro_numero": {
+      "type": "string | null",
+      "optional": true
+    },
+    "cro_uf": {
+      "type": "string | null",
+      "optional": true
+    },
+    "email": {
+      "type": "string | null",
+      "optional": true
+    },
+    "especialidade": {
+      "type": "| Database[\"public\"][\"Enums\"][\"especialidade_enum\"]\n            | null",
+      "optional": true
+    },
+    "foto_url": {
+      "type": "string | null",
+      "optional": true
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "nome": {
+      "type": "string",
+      "optional": false
+    },
+    "percentual_repasse": {
+      "type": "number",
+      "optional": true
+    },
+    "telefone": {
+      "type": "string | null",
+      "optional": true
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "tratamento": {
+    "clinica_id": {
+      "type": "string",
+      "optional": false
+    },
+    "created_at": {
+      "type": "string",
+      "optional": true
+    },
+    "data_conclusao": {
+      "type": "string | null",
+      "optional": true
+    },
+    "data_inicio": {
+      "type": "string | null",
+      "optional": true
+    },
+    "dente": {
+      "type": "string | null",
+      "optional": true
+    },
+    "descricao": {
+      "type": "string",
+      "optional": false
+    },
+    "id": {
+      "type": "string",
+      "optional": true
+    },
+    "observacoes": {
+      "type": "string | null",
+      "optional": true
+    },
+    "paciente_id": {
+      "type": "string",
+      "optional": false
+    },
+    "paciente_nome": {
+      "type": "string | null",
+      "optional": true
+    },
+    "profissional_id": {
+      "type": "string | null",
+      "optional": true
+    },
+    "profissional_nome": {
+      "type": "string | null",
+      "optional": true
+    },
+    "status": {
+      "type": "Database[\"public\"][\"Enums\"][\"status_tratamento_enum\"]",
+      "optional": true
+    },
+    "updated_at": {
+      "type": "string",
+      "optional": true
+    },
+    "valor_total": {
+      "type": "number | null",
+      "optional": true
+    }
+  }
+}

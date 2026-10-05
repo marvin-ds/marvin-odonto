@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "defaults": {
+    "require_auth": true
+  },
+  "modules": {
+    "db": {
+      "require_auth": true,
+      "raw_sql": {
+        "allowed": false
+      },
+      "row_level": {
+        "mode": "none",
+        "owner_field": "user_id"
+      },
+      "tables": {
+        "app_config": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "clinica": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "consulta": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "financeiro": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "historico_clinica": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "membro_equipe": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "orcamento": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "paciente": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "procedimento": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "profissional": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "tratamento": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "profiles": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "user_roles": {
+          "read": "deny",
+          "write": "deny"
+        },
+        "template_owner": {
+          "read": "deny",
+          "write": "deny"
+        }
+      }
+    }
+  }
+}

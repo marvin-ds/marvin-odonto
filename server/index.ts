@@ -1,0 +1,10 @@
+import{Hono}from'hono';import{cors}from'hono/cors';import{makeContext}from'./native/context';import{publicBooking}from'./native/public-booking';import{createClinic}from'./native/clinic';import{decode}from'./native/database';
+const app=new Hono();app.use('*',cors({origin:'*',allowHeaders:['Content-Type','Authorization','X-Clinic-Id']}));
+app.onError((e,c)=>{console.error('request failed',e.message);return c.json({error:e.message||'Falha ao processar'},400)});
+app.get('/health',async c=>{const x=await makeContext(c.req.raw,c.env as any,true);await x.sql.sql('SELECT id FROM app_config LIMIT 1');return c.json({ok:true,database:'connected',version:'odontocontrol-native-v1'})});
+app.get('/api/bootstrap',async c=>{const x=await makeContext(c.req.raw,c.env as any),e=c.env as any;const clinic=x.identity.clinicaId?(await x.sql.sql('SELECT * FROM clinica WHERE id=?',[x.identity.clinicaId])).rows[0]:null;const member=x.identity.clinicaId?(await x.sql.sql('SELECT * FROM membro_equipe WHERE clinica_id=? AND user_id=? AND ativo=1',[x.identity.clinicaId,x.identity.userId])).rows[0]:null;return c.json({configured:!!(e.OWNER_USER_ID||e.OWNER_EMAIL)&&e.OWNER_PROJECT_ID===e.BLINK_PROJECT_ID,isSuperAdmin:x.identity.master,clinica:clinic?decode('clinica',clinic):null,membro:member?decode('membro_equipe',member):x.identity.master&&clinic?{id:'master',clinica_id:clinic.id,nome:'Administrador',email:x.identity.email,role:'owner',ativo:true}:null})});
+app.post('/api/query',async c=>{const x=await makeContext(c.req.raw,c.env as any);return c.json(await x.db.execute(await c.req.json()))});
+app.post('/api/public/booking',async c=>{const x=await makeContext(c.req.raw,c.env as any,true);return c.json(await publicBooking(x,await c.req.json()))});
+app.post('/api/onboarding',async c=>{const x=await makeContext(c.req.raw,c.env as any);return c.json(await createClinic(x,await c.req.json()))});
+app.post('/api/master/clinic',async c=>{const x=await makeContext(c.req.raw,c.env as any);return c.json(await createClinic(x,await c.req.json(),true))});
+export default app;
