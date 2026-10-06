@@ -10,152 +10,68 @@ var __export = (target, all) => {
     __defProp(target, name2, { get: all[name2], enumerable: true });
 };
 
-// node_modules/hono/dist/compose.js
-var compose = (middleware, onError, onNotFound) => {
-  return (context, next) => {
-    let index = -1;
-    return dispatch(0);
-    async function dispatch(i) {
-      if (i <= index) {
-        throw new Error("next() called multiple times");
-      }
-      index = i;
-      let res;
-      let isError = false;
-      let handler;
-      if (middleware[i]) {
-        handler = middleware[i][0][0];
-        context.req.routeIndex = i;
-      } else {
-        handler = i === middleware.length && next || void 0;
-      }
-      if (handler) {
-        try {
-          res = await handler(context, () => dispatch(i + 1));
-        } catch (err) {
-          if (err instanceof Error && onError) {
-            context.error = err;
-            res = await onError(err, context);
-            isError = true;
-          } else {
-            throw err;
-          }
-        }
-      } else {
-        if (context.finalized === false && onNotFound) {
-          res = await onNotFound(context);
-        }
-      }
-      if (res && (context.finalized === false || isError)) {
-        context.res = res;
-      }
-      return context;
-    }
-  };
-};
-
 // node_modules/hono/dist/request/constants.js
-var GET_MATCH_RESULT = /* @__PURE__ */ Symbol();
+var GET_MATCH_RESULT = Symbol();
 
 // node_modules/hono/dist/utils/buffer.js
 var bufferToFormData = (arrayBuffer, contentType) => {
-  const response = new Response(arrayBuffer, {
-    headers: {
-      // Normalize the media type (case-insensitive) while keeping parameters like the boundary
-      "Content-Type": contentType.replace(/^[^;]+/, (mediaType) => mediaType.toLowerCase())
-    }
-  });
-  return response.formData();
+  return new Response(arrayBuffer, { headers: { "Content-Type": contentType.replace(/^[^;]+/, (mediaType) => mediaType.toLowerCase()) } }).formData();
 };
 
 // node_modules/hono/dist/utils/body.js
-var MAX_NESTING_DEPTH = 32;
 var MAX_NESTED_OBJECTS = 1e4;
 var isRawRequest = (request) => "headers" in request;
 var parseBody = async (request, options = /* @__PURE__ */ Object.create(null)) => {
   const { all = false, dot = false } = options;
-  const headers = isRawRequest(request) ? request.headers : request.raw.headers;
-  const contentType = headers.get("Content-Type");
-  const mediaType = contentType?.split(";")[0].trim().toLowerCase();
-  if (mediaType === "multipart/form-data" || mediaType === "application/x-www-form-urlencoded") {
-    return parseFormData(request, { all, dot });
-  }
+  const mediaType = (isRawRequest(request) ? request.headers : request.raw.headers).get("Content-Type")?.split(";")[0].trim().toLowerCase();
+  if (mediaType === "multipart/form-data" || mediaType === "application/x-www-form-urlencoded") return parseFormData(request, {
+    all,
+    dot
+  });
   return {};
 };
 async function parseFormData(request, options) {
-  if (!isRawRequest(request) && request.bodyCache.formData) {
-    return convertFormDataToBodyData(
-      await request.bodyCache.formData,
-      options
-    );
-  }
+  if (!isRawRequest(request) && request.bodyCache.formData) return convertFormDataToBodyData(await request.bodyCache.formData, options);
   const headers = isRawRequest(request) ? request.headers : request.raw.headers;
   const arrayBuffer = await request.arrayBuffer();
   const formDataPromise = bufferToFormData(arrayBuffer, headers.get("Content-Type") || "");
-  if (!isRawRequest(request)) {
-    request.bodyCache.formData = formDataPromise;
-  }
+  if (!isRawRequest(request)) request.bodyCache.formData = formDataPromise;
   const formData = await formDataPromise;
-  if (formData) {
-    return convertFormDataToBodyData(formData, options);
-  }
+  if (formData) return convertFormDataToBodyData(formData, options);
   return {};
 }
 function convertFormDataToBodyData(formData, options) {
   const form = /* @__PURE__ */ Object.create(null);
   const nestingState = { count: 0 };
   formData.forEach((value, key) => {
-    const shouldParseAllValues = options.all || key.endsWith("[]");
-    if (!shouldParseAllValues) {
-      form[key] = value;
-    } else {
-      handleParsingAllValues(form, key, value);
+    if (!(options.all || key.endsWith("[]"))) form[key] = value;
+    else handleParsingAllValues(form, key, value);
+  });
+  if (options.dot) Object.entries(form).forEach(([key, value]) => {
+    if (key.includes(".")) {
+      handleParsingNestedValues(form, key, value, nestingState);
+      delete form[key];
     }
   });
-  if (options.dot) {
-    Object.entries(form).forEach(([key, value]) => {
-      const shouldParseDotValues = key.includes(".");
-      if (shouldParseDotValues) {
-        handleParsingNestedValues(form, key, value, nestingState);
-        delete form[key];
-      }
-    });
-  }
   return form;
 }
 var handleParsingAllValues = (form, key, value) => {
   if (form[key] !== void 0) {
-    if (Array.isArray(form[key])) {
-      ;
-      form[key].push(value);
-    } else {
-      form[key] = [form[key], value];
-    }
-  } else {
-    if (!key.endsWith("[]")) {
-      form[key] = value;
-    } else {
-      form[key] = [value];
-    }
-  }
+    if (Array.isArray(form[key])) form[key].push(value);
+    else form[key] = [form[key], value];
+  } else if (!key.endsWith("[]")) form[key] = value;
+  else form[key] = [value];
 };
 var handleParsingNestedValues = (form, key, value, state) => {
-  if (/(?:^|\.)__proto__\./.test(key)) {
-    return;
-  }
+  if (/(?:^|\.)__proto__\./.test(key)) return;
   let nestedForm = form;
-  const keys = key.split(".", MAX_NESTING_DEPTH + 2);
-  if (keys.length > MAX_NESTING_DEPTH + 1) {
-    throwNestingLimitExceeded();
-  }
+  const keys = key.split(".", 34);
+  if (keys.length > 33) throwNestingLimitExceeded();
   keys.forEach((key2, index) => {
-    if (index === keys.length - 1) {
-      nestedForm[key2] = value;
-    } else {
+    if (index === keys.length - 1) nestedForm[key2] = value;
+    else {
       if (!nestedForm[key2] || typeof nestedForm[key2] !== "object" || Array.isArray(nestedForm[key2]) || nestedForm[key2] instanceof File) {
-        if (state.count++ >= MAX_NESTED_OBJECTS) {
-          throwNestingLimitExceeded();
-        }
+        if (state.count++ >= MAX_NESTED_OBJECTS) throwNestingLimitExceeded();
         nestedForm[key2] = /* @__PURE__ */ Object.create(null);
       }
       nestedForm = nestedForm[key2];
@@ -169,9 +85,7 @@ var throwNestingLimitExceeded = () => {
 // node_modules/hono/dist/utils/url.js
 var splitPath = (path) => {
   const paths = path.split("/");
-  if (paths[0] === "") {
-    paths.shift();
-  }
+  if (paths[0] === "") paths.shift();
   return paths;
 };
 var splitRoutingPath = (routePath) => {
@@ -186,34 +100,42 @@ var extractGroupsFromPath = (path) => {
     groups.push([mark, match2]);
     return mark;
   });
-  return { groups, path };
+  return {
+    groups,
+    path
+  };
 };
 var replaceGroupMarks = (paths, groups) => {
   for (let i = groups.length - 1; i >= 0; i--) {
     const [mark] = groups[i];
-    for (let j = paths.length - 1; j >= 0; j--) {
-      if (paths[j].includes(mark)) {
-        paths[j] = paths[j].replace(mark, groups[i][1]);
-        break;
-      }
+    for (let j = paths.length - 1; j >= 0; j--) if (paths[j].includes(mark)) {
+      paths[j] = paths[j].replace(mark, groups[i][1]);
+      break;
     }
   }
   return paths;
 };
 var patternCache = {};
 var getPattern = (label, next) => {
-  if (label === "*") {
-    return "*";
-  }
+  if (label === "*") return "*";
   const match2 = label.match(/^\:([^\{\}]+)(?:\{(.+)\})?$/);
   if (match2) {
     const cacheKey = `${label}#${next}`;
     if (!patternCache[cacheKey]) {
-      if (match2[2]) {
-        patternCache[cacheKey] = next && next[0] !== ":" && next[0] !== "*" ? [cacheKey, match2[1], new RegExp(`^${match2[2]}(?=/${next})`)] : [label, match2[1], new RegExp(`^${match2[2]}$`)];
-      } else {
-        patternCache[cacheKey] = [label, match2[1], true];
-      }
+      if (match2[2]) patternCache[cacheKey] = next && next[0] !== ":" && next[0] !== "*" ? [
+        cacheKey,
+        match2[1],
+        new RegExp(`^${match2[2]}(?=/${next})`)
+      ] : [
+        label,
+        match2[1],
+        new RegExp(`^${match2[2]}$`)
+      ];
+      else patternCache[cacheKey] = [
+        label,
+        match2[1],
+        true
+      ];
     }
     return patternCache[cacheKey];
   }
@@ -245,9 +167,7 @@ var getPath = (request) => {
       const end = queryIndex === -1 ? hashIndex === -1 ? void 0 : hashIndex : hashIndex === -1 ? queryIndex : Math.min(queryIndex, hashIndex);
       const path = url2.slice(start, end);
       return tryDecodeURI(path.includes("%25") ? path.replace(/%25/g, "%2525") : path);
-    } else if (charCode === 63 || charCode === 35) {
-      break;
-    }
+    } else if (charCode === 63 || charCode === 35) break;
   }
   return url2.slice(start, i);
 };
@@ -256,74 +176,52 @@ var getPathNoStrict = (request) => {
   return result.length > 1 && result.at(-1) === "/" ? result.slice(0, -1) : result;
 };
 var mergePath = (base, sub, ...rest) => {
-  if (rest.length) {
-    sub = mergePath(sub, ...rest);
-  }
+  if (rest.length) sub = mergePath(sub, ...rest);
   return `${base?.[0] === "/" ? "" : "/"}${base}${sub === "/" ? "" : `${base?.at(-1) === "/" ? "" : "/"}${sub?.[0] === "/" ? sub.slice(1) : sub}`}`;
 };
 var checkOptionalParameter = (path) => {
-  if (path.charCodeAt(path.length - 1) !== 63 || !path.includes(":")) {
-    return null;
-  }
+  if (path.charCodeAt(path.length - 1) !== 63 || !path.includes(":")) return null;
   const segments = path.split("/");
   const results = [];
   let basePath = "";
   segments.forEach((segment) => {
-    if (segment !== "" && !/\:/.test(segment)) {
-      basePath += "/" + segment;
-    } else if (/\:/.test(segment)) {
+    if (segment !== "" && !/\:/.test(segment)) basePath += "/" + segment;
+    else if (/\:/.test(segment)) {
       if (segment.charCodeAt(segment.length - 1) === 63) {
-        if (results.length === 0 && basePath === "") {
-          results.push("/");
-        } else {
-          results.push(basePath);
-        }
+        if (results.length === 0 && basePath === "") results.push("/");
+        else results.push(basePath);
         const optionalSegment = segment.slice(0, -1);
         basePath += "/" + optionalSegment;
         results.push(basePath);
-      } else {
-        basePath += "/" + segment;
-      }
+      } else basePath += "/" + segment;
     }
   });
   return results.filter((v, i, a) => a.indexOf(v) === i);
 };
 var tryDecodeURIComponent = (str) => str.indexOf("%") !== -1 ? tryDecode(str, decodeURIComponent_) : str;
 var _decodeURI = (value) => {
-  if (value.indexOf("+") !== -1) {
-    value = value.replace(/\+/g, " ");
-  }
+  if (value.indexOf("+") !== -1) value = value.replace(/\+/g, " ");
   return tryDecodeURIComponent(value);
 };
 var _getQueryParam = (url2, key, multiple) => {
   const hashIndex = url2.indexOf("#", 8);
-  if (hashIndex !== -1) {
-    url2 = url2.slice(0, hashIndex);
-  }
+  if (hashIndex !== -1) url2 = url2.slice(0, hashIndex);
   let encoded;
   if (!multiple && key && key.indexOf("%") === -1 && key.indexOf("+") === -1) {
     let keyIndex2 = url2.indexOf("?", 8);
-    if (keyIndex2 === -1) {
-      return void 0;
-    }
-    if (!url2.startsWith(key, keyIndex2 + 1)) {
-      keyIndex2 = url2.indexOf(`&${key}`, keyIndex2 + 1);
-    }
+    if (keyIndex2 === -1) return;
+    if (!url2.startsWith(key, keyIndex2 + 1)) keyIndex2 = url2.indexOf(`&${key}`, keyIndex2 + 1);
     while (keyIndex2 !== -1) {
       const trailingKeyCode = url2.charCodeAt(keyIndex2 + key.length + 1);
       if (trailingKeyCode === 61) {
         const valueIndex = keyIndex2 + key.length + 2;
         const endIndex = url2.indexOf("&", valueIndex);
         return _decodeURI(url2.slice(valueIndex, endIndex === -1 ? void 0 : endIndex));
-      } else if (trailingKeyCode == 38 || isNaN(trailingKeyCode)) {
-        return "";
-      }
+      } else if (trailingKeyCode == 38 || isNaN(trailingKeyCode)) return "";
       keyIndex2 = url2.indexOf(`&${key}`, keyIndex2 + 1);
     }
     encoded = /[%+]/.test(url2);
-    if (!encoded) {
-      return void 0;
-    }
+    if (!encoded) return;
   }
   const results = /* @__PURE__ */ Object.create(null);
   encoded ??= /[%+]/.test(url2);
@@ -331,38 +229,21 @@ var _getQueryParam = (url2, key, multiple) => {
   while (keyIndex !== -1) {
     const nextKeyIndex = url2.indexOf("&", keyIndex + 1);
     let valueIndex = url2.indexOf("=", keyIndex);
-    if (valueIndex > nextKeyIndex && nextKeyIndex !== -1) {
-      valueIndex = -1;
-    }
-    let name2 = url2.slice(
-      keyIndex + 1,
-      valueIndex === -1 ? nextKeyIndex === -1 ? void 0 : nextKeyIndex : valueIndex
-    );
-    if (encoded) {
-      name2 = _decodeURI(name2);
-    }
+    if (valueIndex > nextKeyIndex && nextKeyIndex !== -1) valueIndex = -1;
+    let name2 = url2.slice(keyIndex + 1, valueIndex === -1 ? nextKeyIndex === -1 ? void 0 : nextKeyIndex : valueIndex);
+    if (encoded) name2 = _decodeURI(name2);
     keyIndex = nextKeyIndex;
-    if (name2 === "") {
-      continue;
-    }
+    if (name2 === "") continue;
     let value;
-    if (valueIndex === -1) {
-      value = "";
-    } else {
+    if (valueIndex === -1) value = "";
+    else {
       value = url2.slice(valueIndex + 1, nextKeyIndex === -1 ? void 0 : nextKeyIndex);
-      if (encoded) {
-        value = _decodeURI(value);
-      }
+      if (encoded) value = _decodeURI(value);
     }
     if (multiple) {
-      if (!(results[name2] && Array.isArray(results[name2]))) {
-        results[name2] = [];
-      }
-      ;
+      if (!(results[name2] && Array.isArray(results[name2]))) results[name2] = [];
       results[name2].push(value);
-    } else {
-      results[name2] ??= value;
-    }
+    } else results[name2] ??= value;
   }
   return key ? results[key] : results;
 };
@@ -375,36 +256,35 @@ var decodeURIComponent_ = decodeURIComponent;
 // node_modules/hono/dist/request.js
 var HonoRequest = class {
   /**
-   * `.raw` can get the raw Request object.
-   *
-   * @see {@link https://hono.dev/docs/api/request#raw}
-   *
-   * @example
-   * ```ts
-   * // For Cloudflare Workers
-   * app.post('/', async (c) => {
-   *   const metadata = c.req.raw.cf?.hostMetadata?
-   *   ...
-   * })
-   * ```
-   */
+  * `.raw` can get the raw Request object.
+  *
+  * @see {@link https://hono.dev/docs/api/request#raw}
+  *
+  * @example
+  * ```ts
+  * // For Cloudflare Workers
+  * app.post('/', async (c) => {
+  *   const metadata = c.req.raw.cf?.hostMetadata?
+  *   ...
+  * })
+  * ```
+  */
   raw;
   #validatedData;
-  // Short name of validatedData
   #matchResult;
   routeIndex = 0;
   /**
-   * `.path` can get the pathname of the request.
-   *
-   * @see {@link https://hono.dev/docs/api/request#path}
-   *
-   * @example
-   * ```ts
-   * app.get('/about/me', (c) => {
-   *   const pathname = c.req.path // `/about/me`
-   * })
-   * ```
-   */
+  * `.path` can get the pathname of the request.
+  *
+  * @see {@link https://hono.dev/docs/api/request#path}
+  *
+  * @example
+  * ```ts
+  * app.get('/about/me', (c) => {
+  *   const pathname = c.req.path // `/about/me`
+  * })
+  * ```
+  */
   path;
   bodyCache = {};
   constructor(request, path = "/", matchResult = [[]]) {
@@ -425,9 +305,7 @@ var HonoRequest = class {
     const keys = Object.keys(this.#matchResult[0][this.routeIndex]?.[1] ?? {});
     for (const key of keys) {
       const value = this.#getParamValue(this.#matchResult[0][this.routeIndex][1][key]);
-      if (value !== void 0) {
-        decoded[key] = tryDecodeURIComponent(value);
-      }
+      if (value !== void 0) decoded[key] = tryDecodeURIComponent(value);
     }
     return decoded;
   }
@@ -441,9 +319,7 @@ var HonoRequest = class {
     return getQueryParams(this.url, key);
   }
   header(name2) {
-    if (name2) {
-      return this.raw.headers.get(name2) ?? void 0;
-    }
+    if (name2) return this.raw.headers.get(name2) ?? void 0;
     const headerData = /* @__PURE__ */ Object.create(null);
     this.raw.headers.forEach((value, key) => {
       headerData[key] = value;
@@ -456,149 +332,140 @@ var HonoRequest = class {
   #cachedBody = (key) => {
     const { bodyCache, raw: raw2 } = this;
     const cachedBody = bodyCache[key];
-    if (cachedBody) {
-      return cachedBody;
-    }
-    for (const anyCachedKey in bodyCache) {
-      return bodyCache[anyCachedKey].then((body) => {
-        if (anyCachedKey === "json") {
-          body = JSON.stringify(body);
-        }
-        const contentType = anyCachedKey === "formData" ? void 0 : raw2.headers.get("content-type");
-        return new Response(body, {
-          headers: contentType ? { "Content-Type": contentType } : void 0
-        })[key]();
-      });
-    }
+    if (cachedBody) return cachedBody;
+    for (const anyCachedKey in bodyCache) return bodyCache[anyCachedKey].then((body) => {
+      if (anyCachedKey === "json") body = JSON.stringify(body);
+      const contentType = anyCachedKey === "formData" ? void 0 : raw2.headers.get("content-type");
+      return new Response(body, { headers: contentType ? { "Content-Type": contentType } : void 0 })[key]();
+    });
     return bodyCache[key] = raw2[key]();
   };
   /**
-   * `.json()` can parse Request body of type `application/json`
-   *
-   * @see {@link https://hono.dev/docs/api/request#json}
-   *
-   * @example
-   * ```ts
-   * app.post('/entry', async (c) => {
-   *   const body = await c.req.json()
-   * })
-   * ```
-   */
+  * `.json()` can parse Request body of type `application/json`
+  *
+  * @see {@link https://hono.dev/docs/api/request#json}
+  *
+  * @example
+  * ```ts
+  * app.post('/entry', async (c) => {
+  *   const body = await c.req.json()
+  * })
+  * ```
+  */
   json() {
     return this.#cachedBody("text").then((text2) => JSON.parse(text2));
   }
   /**
-   * `.text()` can parse Request body of type `text/plain`
-   *
-   * @see {@link https://hono.dev/docs/api/request#text}
-   *
-   * @example
-   * ```ts
-   * app.post('/entry', async (c) => {
-   *   const body = await c.req.text()
-   * })
-   * ```
-   */
+  * `.text()` can parse Request body of type `text/plain`
+  *
+  * @see {@link https://hono.dev/docs/api/request#text}
+  *
+  * @example
+  * ```ts
+  * app.post('/entry', async (c) => {
+  *   const body = await c.req.text()
+  * })
+  * ```
+  */
   text() {
     return this.#cachedBody("text");
   }
   /**
-   * `.arrayBuffer()` parse Request body as an `ArrayBuffer`
-   *
-   * @see {@link https://hono.dev/docs/api/request#arraybuffer}
-   *
-   * @example
-   * ```ts
-   * app.post('/entry', async (c) => {
-   *   const body = await c.req.arrayBuffer()
-   * })
-   * ```
-   */
+  * `.arrayBuffer()` parse Request body as an `ArrayBuffer`
+  *
+  * @see {@link https://hono.dev/docs/api/request#arraybuffer}
+  *
+  * @example
+  * ```ts
+  * app.post('/entry', async (c) => {
+  *   const body = await c.req.arrayBuffer()
+  * })
+  * ```
+  */
   arrayBuffer() {
     return this.#cachedBody("arrayBuffer");
   }
   /**
-   * `.bytes()` parses the request body as a `Uint8Array`.
-   *
-   * @see {@link https://hono.dev/docs/api/request#bytes}
-   *
-   * @example
-   * ```ts
-   * app.post('/entry', async (c) => {
-   *   const body = await c.req.bytes()
-   * })
-   * ```
-   */
+  * `.bytes()` parses the request body as a `Uint8Array`.
+  *
+  * @see {@link https://hono.dev/docs/api/request#bytes}
+  *
+  * @example
+  * ```ts
+  * app.post('/entry', async (c) => {
+  *   const body = await c.req.bytes()
+  * })
+  * ```
+  */
   bytes() {
     return this.#cachedBody("arrayBuffer").then((buffer) => new Uint8Array(buffer));
   }
   /**
-   * Parses the request body as a `Blob`.
-   * @example
-   * ```ts
-   * app.post('/entry', async (c) => {
-   *   const body = await c.req.blob();
-   * });
-   * ```
-   * @see https://hono.dev/docs/api/request#blob
-   */
+  * Parses the request body as a `Blob`.
+  * @example
+  * ```ts
+  * app.post('/entry', async (c) => {
+  *   const body = await c.req.blob();
+  * });
+  * ```
+  * @see https://hono.dev/docs/api/request#blob
+  */
   blob() {
     return this.#cachedBody("blob");
   }
   /**
-   * Parses the request body as `FormData`.
-   * @example
-   * ```ts
-   * app.post('/entry', async (c) => {
-   *   const body = await c.req.formData();
-   * });
-   * ```
-   * @see https://hono.dev/docs/api/request#formdata
-   */
+  * Parses the request body as `FormData`.
+  * @example
+  * ```ts
+  * app.post('/entry', async (c) => {
+  *   const body = await c.req.formData();
+  * });
+  * ```
+  * @see https://hono.dev/docs/api/request#formdata
+  */
   formData() {
     return this.#cachedBody("formData");
   }
   /**
-   * Adds validated data to the request.
-   *
-   * @param target - The target of the validation.
-   * @param data - The validated data to add.
-   */
+  * Adds validated data to the request.
+  *
+  * @param target - The target of the validation.
+  * @param data - The validated data to add.
+  */
   addValidatedData(target, data) {
-    ;
     (this.#validatedData ??= {})[target] = data;
   }
   valid(target) {
     return this.#validatedData?.[target];
   }
   /**
-   * `.url()` can get the request url strings.
-   *
-   * @see {@link https://hono.dev/docs/api/request#url}
-   *
-   * @example
-   * ```ts
-   * app.get('/about/me', (c) => {
-   *   const url = c.req.url // `http://localhost:8787/about/me`
-   *   ...
-   * })
-   * ```
-   */
+  * `.url` can get the request url strings.
+  *
+  * @see {@link https://hono.dev/docs/api/request#url}
+  *
+  * @example
+  * ```ts
+  * app.get('/about/me', (c) => {
+  *   const url = c.req.url // `http://localhost:8787/about/me`
+  *   ...
+  * })
+  * ```
+  */
   get url() {
     return this.raw.url;
   }
   /**
-   * `.method()` can get the method name of the request.
-   *
-   * @see {@link https://hono.dev/docs/api/request#method}
-   *
-   * @example
-   * ```ts
-   * app.get('/about/me', (c) => {
-   *   const method = c.req.method // `GET`
-   * })
-   * ```
-   */
+  * `.method` can get the method name of the request.
+  *
+  * @see {@link https://hono.dev/docs/api/request#method}
+  *
+  * @example
+  * ```ts
+  * app.get('/about/me', (c) => {
+  *   const method = c.req.method // `GET`
+  * })
+  * ```
+  */
   get method() {
     return this.raw.method;
   }
@@ -606,51 +473,51 @@ var HonoRequest = class {
     return this.#matchResult;
   }
   /**
-   * `.matchedRoutes()` can return a matched route in the handler
-   *
-   * @deprecated
-   *
-   * Use matchedRoutes helper defined in "hono/route" instead.
-   *
-   * @see {@link https://hono.dev/docs/api/request#matchedroutes}
-   *
-   * @example
-   * ```ts
-   * app.use('*', async function logger(c, next) {
-   *   await next()
-   *   c.req.matchedRoutes.forEach(({ handler, method, path }, i) => {
-   *     const name = handler.name || (handler.length < 2 ? '[handler]' : '[middleware]')
-   *     console.log(
-   *       method,
-   *       ' ',
-   *       path,
-   *       ' '.repeat(Math.max(10 - path.length, 0)),
-   *       name,
-   *       i === c.req.routeIndex ? '<- respond from here' : ''
-   *     )
-   *   })
-   * })
-   * ```
-   */
+  * `.matchedRoutes` can return a matched route in the handler
+  *
+  * @deprecated
+  *
+  * Use matchedRoutes helper defined in "hono/route" instead.
+  *
+  * @see {@link https://hono.dev/docs/api/request#matchedroutes}
+  *
+  * @example
+  * ```ts
+  * app.use('*', async function logger(c, next) {
+  *   await next()
+  *   c.req.matchedRoutes.forEach(({ handler, method, path }, i) => {
+  *     const name = handler.name || (handler.length < 2 ? '[handler]' : '[middleware]')
+  *     console.log(
+  *       method,
+  *       ' ',
+  *       path,
+  *       ' '.repeat(Math.max(10 - path.length, 0)),
+  *       name,
+  *       i === c.req.routeIndex ? '<- respond from here' : ''
+  *     )
+  *   })
+  * })
+  * ```
+  */
   get matchedRoutes() {
     return this.#matchResult[0].map(([[, route]]) => route);
   }
   /**
-   * `routePath()` can retrieve the path registered within the handler
-   *
-   * @deprecated
-   *
-   * Use routePath helper defined in "hono/route" instead.
-   *
-   * @see {@link https://hono.dev/docs/api/request#routepath}
-   *
-   * @example
-   * ```ts
-   * app.get('/posts/:id', (c) => {
-   *   return c.json({ path: c.req.routePath })
-   * })
-   * ```
-   */
+  * `.routePath` can retrieve the path registered within the handler
+  *
+  * @deprecated
+  *
+  * Use routePath helper defined in "hono/route" instead.
+  *
+  * @see {@link https://hono.dev/docs/api/request#routepath}
+  *
+  * @example
+  * ```ts
+  * app.get('/posts/:id', (c) => {
+  *   return c.json({ path: c.req.routePath })
+  * })
+  * ```
+  */
   get routePath() {
     return this.#matchResult[0].map(([[, route]]) => route)[this.routeIndex].path;
   }
@@ -670,32 +537,20 @@ var raw = (value, callbacks) => {
 };
 var resolveCallback = async (str, phase, preserveCallbacks, context, buffer) => {
   if (typeof str === "object" && !(str instanceof String)) {
-    if (!(str instanceof Promise)) {
-      str = str.toString();
-    }
-    if (str instanceof Promise) {
-      str = await str;
-    }
+    if (!(str instanceof Promise)) str = str.toString();
+    if (str instanceof Promise) str = await str;
   }
   const callbacks = str.callbacks;
-  if (!callbacks?.length) {
-    return Promise.resolve(str);
-  }
-  if (buffer) {
-    buffer[0] += str;
-  } else {
-    buffer = [str];
-  }
-  const resStr = Promise.all(callbacks.map((c) => c({ phase, buffer, context }))).then(
-    (res) => Promise.all(
-      res.filter(Boolean).map((str2) => resolveCallback(str2, phase, false, context, buffer))
-    ).then(() => buffer[0])
-  );
-  if (preserveCallbacks) {
-    return raw(await resStr, callbacks);
-  } else {
-    return resStr;
-  }
+  if (!callbacks?.length) return Promise.resolve(str);
+  if (buffer) buffer[0] += str;
+  else buffer = [str];
+  const resStr = Promise.all(callbacks.map((c) => c({
+    phase,
+    buffer,
+    context
+  }))).then((res) => Promise.all(res.filter(Boolean).map((str2) => resolveCallback(str2, phase, false, context, buffer))).then(() => buffer[0]));
+  if (preserveCallbacks) return raw(await resStr, callbacks);
+  else return resStr;
 };
 
 // node_modules/hono/dist/context.js
@@ -711,36 +566,36 @@ var Context = class {
   #rawRequest;
   #req;
   /**
-   * `.env` can get bindings (environment variables, secrets, KV namespaces, D1 database, R2 bucket etc.) in Cloudflare Workers.
-   *
-   * @see {@link https://hono.dev/docs/api/context#env}
-   *
-   * @example
-   * ```ts
-   * // Environment object for Cloudflare Workers
-   * app.get('*', async c => {
-   *   const counter = c.env.COUNTER
-   * })
-   * ```
-   */
+  * `.env` can get bindings (environment variables, secrets, KV namespaces, D1 database, R2 bucket etc.) in Cloudflare Workers.
+  *
+  * @see {@link https://hono.dev/docs/api/context#env}
+  *
+  * @example
+  * ```ts
+  * // Environment object for Cloudflare Workers
+  * app.get('*', async c => {
+  *   const counter = c.env.COUNTER
+  * })
+  * ```
+  */
   env = {};
   #var;
   finalized = false;
   /**
-   * `.error` can get the error object from the middleware if the Handler throws an error.
-   *
-   * @see {@link https://hono.dev/docs/api/context#error}
-   *
-   * @example
-   * ```ts
-   * app.use('*', async (c, next) => {
-   *   await next()
-   *   if (c.error) {
-   *     // do something...
-   *   }
-   * })
-   * ```
-   */
+  * `.error` can get the error object from the middleware if the Handler throws an error.
+  *
+  * @see {@link https://hono.dev/docs/api/context#error}
+  *
+  * @example
+  * ```ts
+  * app.use('*', async (c, next) => {
+  *   await next()
+  *   if (c.error) {
+  *     // do something...
+  *   }
+  * })
+  * ```
+  */
   error;
   #status;
   #executionCtx;
@@ -752,11 +607,11 @@ var Context = class {
   #matchResult;
   #path;
   /**
-   * Creates an instance of the Context class.
-   *
-   * @param req - The Request object.
-   * @param options - Optional configuration options for the context.
-   */
+  * Creates an instance of the Context class.
+  *
+  * @param req - The Request object.
+  * @param options - Optional configuration options for the context.
+  */
   constructor(req, options) {
     this.#rawRequest = req;
     if (options) {
@@ -768,245 +623,210 @@ var Context = class {
     }
   }
   /**
-   * `.req` is the instance of {@link HonoRequest}.
-   */
+  * `.req` is the instance of {@link HonoRequest}.
+  */
   get req() {
     this.#req ??= new HonoRequest(this.#rawRequest, this.#path, this.#matchResult);
     return this.#req;
   }
   /**
-   * @see {@link https://hono.dev/docs/api/context#event}
-   * The FetchEvent associated with the current request.
-   *
-   * @throws Will throw an error if the context does not have a FetchEvent.
-   */
+  * @see {@link https://hono.dev/docs/api/context#event}
+  * The FetchEvent associated with the current request.
+  *
+  * @throws Will throw an error if the context does not have a FetchEvent.
+  */
   get event() {
-    if (this.#executionCtx && "respondWith" in this.#executionCtx) {
-      return this.#executionCtx;
-    } else {
-      throw Error("This context has no FetchEvent");
-    }
+    if (this.#executionCtx && "respondWith" in this.#executionCtx) return this.#executionCtx;
+    else throw Error("This context has no FetchEvent");
   }
   /**
-   * @see {@link https://hono.dev/docs/api/context#executionctx}
-   * The ExecutionContext associated with the current request.
-   *
-   * @throws Will throw an error if the context does not have an ExecutionContext.
-   */
+  * @see {@link https://hono.dev/docs/api/context#executionctx}
+  * The ExecutionContext associated with the current request.
+  *
+  * @throws Will throw an error if the context does not have an ExecutionContext.
+  */
   get executionCtx() {
-    if (this.#executionCtx) {
-      return this.#executionCtx;
-    } else {
-      throw Error("This context has no ExecutionContext");
-    }
+    if (this.#executionCtx) return this.#executionCtx;
+    else throw Error("This context has no ExecutionContext");
   }
   /**
-   * @see {@link https://hono.dev/docs/api/context#res}
-   * The Response object for the current request.
-   */
+  * @see {@link https://hono.dev/docs/api/context#res}
+  * The Response object for the current request.
+  */
   get res() {
-    return this.#res ||= createResponseInstance(null, {
-      headers: this.#preparedHeaders ??= new Headers()
-    });
+    return this.#res ||= createResponseInstance(null, { headers: this.#preparedHeaders ??= new Headers() });
   }
   /**
-   * Sets the Response object for the current request.
-   *
-   * @param _res - The Response object to set.
-   */
+  * Sets the Response object for the current request.
+  *
+  * @param _res - The Response object to set.
+  */
   set res(_res) {
     if (this.#res && _res) {
       _res = createResponseInstance(_res.body, _res);
       for (const [k, v] of this.#res.headers.entries()) {
-        if (k === "content-type") {
-          continue;
-        }
+        if (k === "content-type") continue;
         if (k === "set-cookie") {
           const cookies = this.#res.headers.getSetCookie();
           _res.headers.delete("set-cookie");
-          for (const cookie of cookies) {
-            _res.headers.append("set-cookie", cookie);
-          }
-        } else {
-          _res.headers.set(k, v);
-        }
+          for (const cookie of cookies) _res.headers.append("set-cookie", cookie);
+        } else _res.headers.set(k, v);
       }
     }
     this.#res = _res;
     this.finalized = true;
   }
   /**
-   * `.render()` can create a response within a layout.
-   *
-   * @see {@link https://hono.dev/docs/api/context#render-setrenderer}
-   *
-   * @example
-   * ```ts
-   * app.get('/', (c) => {
-   *   return c.render('Hello!')
-   * })
-   * ```
-   */
+  * `.render()` can create a response within a layout.
+  *
+  * @see {@link https://hono.dev/docs/api/context#render-setrenderer}
+  *
+  * @example
+  * ```ts
+  * app.get('/', (c) => {
+  *   return c.render('Hello!')
+  * })
+  * ```
+  */
   render = (...args) => {
     this.#renderer ??= (content) => this.html(content);
     return this.#renderer(...args);
   };
   /**
-   * Sets the layout for the response.
-   *
-   * @param layout - The layout to set.
-   * @returns The layout function.
-   */
+  * Sets the layout for the response.
+  *
+  * @param layout - The layout to set.
+  * @returns The layout function.
+  */
   setLayout = (layout) => this.#layout = layout;
   /**
-   * Gets the current layout for the response.
-   *
-   * @returns The current layout function.
-   */
+  * Gets the current layout for the response.
+  *
+  * @returns The current layout function.
+  */
   getLayout = () => this.#layout;
   /**
-   * `.setRenderer()` can set the layout in the custom middleware.
-   *
-   * @see {@link https://hono.dev/docs/api/context#render-setrenderer}
-   *
-   * @example
-   * ```tsx
-   * app.use('*', async (c, next) => {
-   *   c.setRenderer((content) => {
-   *     return c.html(
-   *       <html>
-   *         <body>
-   *           <p>{content}</p>
-   *         </body>
-   *       </html>
-   *     )
-   *   })
-   *   await next()
-   * })
-   * ```
-   */
+  * `.setRenderer()` can set the layout in the custom middleware.
+  *
+  * @see {@link https://hono.dev/docs/api/context#render-setrenderer}
+  *
+  * @example
+  * ```tsx
+  * app.use('*', async (c, next) => {
+  *   c.setRenderer((content) => {
+  *     return c.html(
+  *       <html>
+  *         <body>
+  *           <p>{content}</p>
+  *         </body>
+  *       </html>
+  *     )
+  *   })
+  *   await next()
+  * })
+  * ```
+  */
   setRenderer = (renderer) => {
     this.#renderer = renderer;
   };
   /**
-   * `.header()` can set headers.
-   *
-   * @see {@link https://hono.dev/docs/api/context#header}
-   *
-   * @example
-   * ```ts
-   * app.get('/welcome', (c) => {
-   *   // Set headers
-   *   c.header('X-Message', 'Hello!')
-   *   c.header('Content-Type', 'text/plain')
-   *
-   *   // Append multiple headers using the append option (e.g. Vary)
-   *   c.header('Vary', 'Accept-Encoding', { append: true })
-   *   c.header('Vary', 'User-Agent', { append: true })
-   *
-   *   return c.body('Thank you for coming')
-   * })
-   * ```
-   */
+  * `.header()` can set headers.
+  *
+  * @see {@link https://hono.dev/docs/api/context#header}
+  *
+  * @example
+  * ```ts
+  * app.get('/welcome', (c) => {
+  *   // Set headers
+  *   c.header('X-Message', 'Hello!')
+  *   c.header('Content-Type', 'text/plain')
+  *
+  *   // Append multiple headers using the append option (e.g. Vary)
+  *   c.header('Vary', 'Accept-Encoding', { append: true })
+  *   c.header('Vary', 'User-Agent', { append: true })
+  *
+  *   return c.body('Thank you for coming')
+  * })
+  * ```
+  */
   header = (name2, value, options) => {
-    if (this.finalized) {
-      this.#res = createResponseInstance(this.#res.body, this.#res);
-    }
+    if (this.finalized) this.#res = createResponseInstance(this.#res.body, this.#res);
     const headers = this.#res ? this.#res.headers : this.#preparedHeaders ??= new Headers();
-    if (value === void 0) {
-      headers.delete(name2);
-    } else if (options?.append) {
-      headers.append(name2, value);
-    } else {
-      headers.set(name2, value);
-    }
+    if (value === void 0) headers.delete(name2);
+    else if (options?.append) headers.append(name2, value);
+    else headers.set(name2, value);
   };
   status = (status) => {
     this.#status = status;
   };
   /**
-   * `.set()` can set the value specified by the key.
-   *
-   * @see {@link https://hono.dev/docs/api/context#set-get}
-   *
-   * @example
-   * ```ts
-   * app.use('*', async (c, next) => {
-   *   c.set('message', 'Hono is hot!!')
-   *   await next()
-   * })
-   * ```
-   */
+  * `.set()` can set the value specified by the key.
+  *
+  * @see {@link https://hono.dev/docs/api/context#set-get}
+  *
+  * @example
+  * ```ts
+  * app.use('*', async (c, next) => {
+  *   c.set('message', 'Hono is hot!!')
+  *   await next()
+  * })
+  * ```
+  */
   set = (key, value) => {
     this.#var ??= /* @__PURE__ */ new Map();
     this.#var.set(key, value);
   };
   /**
-   * `.get()` can use the value specified by the key.
-   *
-   * @see {@link https://hono.dev/docs/api/context#set-get}
-   *
-   * @example
-   * ```ts
-   * app.get('/', (c) => {
-   *   const message = c.get('message')
-   *   return c.text(`The message is "${message}"`)
-   * })
-   * ```
-   */
+  * `.get()` can use the value specified by the key.
+  *
+  * @see {@link https://hono.dev/docs/api/context#set-get}
+  *
+  * @example
+  * ```ts
+  * app.get('/', (c) => {
+  *   const message = c.get('message')
+  *   return c.text(`The message is "${message}"`)
+  * })
+  * ```
+  */
   get = (key) => {
     return this.#var ? this.#var.get(key) : void 0;
   };
   /**
-   * `.var` can access the value of a variable.
-   *
-   * @see {@link https://hono.dev/docs/api/context#var}
-   *
-   * @example
-   * ```ts
-   * const result = c.var.client.oneMethod()
-   * ```
-   */
-  // c.var.propName is a read-only
+  * `.var` can access the value of a variable.
+  *
+  * @see {@link https://hono.dev/docs/api/context#var}
+  *
+  * @example
+  * ```ts
+  * const result = c.var.client.oneMethod()
+  * ```
+  */
   get var() {
-    if (!this.#var) {
-      return {};
-    }
+    if (!this.#var) return {};
     return Object.fromEntries(this.#var);
   }
   #newResponse(data, arg, headers) {
     let responseHeaders = this.#res ? new Headers(this.#res.headers) : this.#preparedHeaders;
     if (typeof arg === "object" && arg.headers) {
       responseHeaders ??= new Headers();
-      for (const [key, value] of new Headers(arg.headers)) {
-        if (key === "set-cookie") {
-          responseHeaders.append(key, value);
-        } else {
-          responseHeaders.set(key, value);
-        }
-      }
+      for (const [key, value] of new Headers(arg.headers)) if (key === "set-cookie") responseHeaders.append(key, value);
+      else responseHeaders.set(key, value);
     }
     if (headers) {
       if (!responseHeaders) {
         let count = 0;
-        for (const k in headers) {
-          if (++count > 1 || typeof headers[k] !== "string") {
-            responseHeaders = new Headers();
-            break;
-          }
+        for (const k in headers) if (++count > 1 || typeof headers[k] !== "string") {
+          responseHeaders = new Headers();
+          break;
         }
       }
-      if (responseHeaders) {
-        for (const k in headers) {
-          const v = headers[k];
-          if (typeof v === "string") {
-            responseHeaders.set(k, v);
-          } else {
-            responseHeaders.delete(k);
-            for (const v2 of v) {
-              responseHeaders.append(k, v2);
-            }
-          }
+      if (responseHeaders) for (const k in headers) {
+        const v = headers[k];
+        if (typeof v === "string") responseHeaders.set(k, v);
+        else {
+          responseHeaders.delete(k);
+          for (const v2 of v) responseHeaders.append(k, v2);
         }
       }
     }
@@ -1018,116 +838,140 @@ var Context = class {
   }
   newResponse = (...args) => this.#newResponse(...args);
   /**
-   * `.body()` can return the HTTP response.
-   * You can set headers with `.header()` and set HTTP status code with `.status`.
-   * This can also be set in `.text()`, `.json()` and so on.
-   *
-   * @see {@link https://hono.dev/docs/api/context#body}
-   *
-   * @example
-   * ```ts
-   * app.get('/welcome', (c) => {
-   *   // Set headers
-   *   c.header('X-Message', 'Hello!')
-   *   c.header('Content-Type', 'text/plain')
-   *   // Set HTTP status code
-   *   c.status(201)
-   *
-   *   // Return the response body
-   *   return c.body('Thank you for coming')
-   * })
-   * ```
-   */
+  * `.body()` can return the HTTP response.
+  * You can set headers with `.header()` and set HTTP status code with `.status`.
+  * This can also be set in `.text()`, `.json()` and so on.
+  *
+  * @see {@link https://hono.dev/docs/api/context#body}
+  *
+  * @example
+  * ```ts
+  * app.get('/welcome', (c) => {
+  *   // Set headers
+  *   c.header('X-Message', 'Hello!')
+  *   c.header('Content-Type', 'text/plain')
+  *   // Set HTTP status code
+  *   c.status(201)
+  *
+  *   // Return the response body
+  *   return c.body('Thank you for coming')
+  * })
+  * ```
+  */
   body = (data, arg, headers) => this.#newResponse(data, arg, headers);
   /**
-   * `.text()` can render text as `Content-Type:text/plain`.
-   *
-   * @see {@link https://hono.dev/docs/api/context#text}
-   *
-   * @example
-   * ```ts
-   * app.get('/say', (c) => {
-   *   return c.text('Hello!')
-   * })
-   * ```
-   */
+  * `.text()` can render text as `Content-Type:text/plain`.
+  *
+  * @see {@link https://hono.dev/docs/api/context#text}
+  *
+  * @example
+  * ```ts
+  * app.get('/say', (c) => {
+  *   return c.text('Hello!')
+  * })
+  * ```
+  */
   text = (text2, arg, headers) => {
-    return !this.#preparedHeaders && !this.#status && !arg && !headers && !this.finalized ? new Response(text2) : this.#newResponse(
-      text2,
-      arg,
-      setDefaultContentType(TEXT_PLAIN, headers)
-    );
+    return !this.#preparedHeaders && !this.#status && !arg && !headers && !this.finalized ? new Response(text2) : this.#newResponse(text2, arg, setDefaultContentType(TEXT_PLAIN, headers));
   };
   /**
-   * `.json()` can render JSON as `Content-Type:application/json`.
-   *
-   * @see {@link https://hono.dev/docs/api/context#json}
-   *
-   * @example
-   * ```ts
-   * app.get('/api', (c) => {
-   *   return c.json({ message: 'Hello!' })
-   * })
-   * ```
-   */
+  * `.json()` can render JSON as `Content-Type:application/json`.
+  *
+  * @see {@link https://hono.dev/docs/api/context#json}
+  *
+  * @example
+  * ```ts
+  * app.get('/api', (c) => {
+  *   return c.json({ message: 'Hello!' })
+  * })
+  * ```
+  */
   json = (object2, arg, headers) => {
-    return this.#newResponse(
-      JSON.stringify(object2),
-      arg,
-      setDefaultContentType("application/json", headers)
-    );
+    return this.#newResponse(JSON.stringify(object2), arg, setDefaultContentType("application/json", headers));
   };
   html = (html, arg, headers) => {
     const res = (html2) => this.#newResponse(html2, arg, setDefaultContentType("text/html; charset=UTF-8", headers));
     return typeof html === "object" ? resolveCallback(html, HtmlEscapedCallbackPhase.Stringify, false, {}).then(res) : res(html);
   };
   /**
-   * `.redirect()` can Redirect, default status code is 302.
-   *
-   * @see {@link https://hono.dev/docs/api/context#redirect}
-   *
-   * @example
-   * ```ts
-   * app.get('/redirect', (c) => {
-   *   return c.redirect('/')
-   * })
-   * app.get('/redirect-permanently', (c) => {
-   *   return c.redirect('/', 301)
-   * })
-   * ```
-   */
+  * `.redirect()` can Redirect, default status code is 302.
+  *
+  * @see {@link https://hono.dev/docs/api/context#redirect}
+  *
+  * @example
+  * ```ts
+  * app.get('/redirect', (c) => {
+  *   return c.redirect('/')
+  * })
+  * app.get('/redirect-permanently', (c) => {
+  *   return c.redirect('/', 301)
+  * })
+  * ```
+  */
   redirect = (location, status) => {
     const locationString = String(location);
-    this.header(
-      "Location",
-      // Multibytes should be encoded
-      // eslint-disable-next-line no-control-regex
-      !/[^\x00-\xFF]/.test(locationString) ? locationString : encodeURI(locationString)
-    );
+    this.header("Location", !/[^\x00-\xFF]/.test(locationString) ? locationString : encodeURI(locationString));
     return this.newResponse(null, status ?? 302);
   };
   /**
-   * `.notFound()` can return the Not Found Response.
-   *
-   * @see {@link https://hono.dev/docs/api/context#notfound}
-   *
-   * @example
-   * ```ts
-   * app.get('/notfound', (c) => {
-   *   return c.notFound()
-   * })
-   * ```
-   */
+  * `.notFound()` can return the Not Found Response.
+  *
+  * @see {@link https://hono.dev/docs/api/context#notfound}
+  *
+  * @example
+  * ```ts
+  * app.get('/notfound', (c) => {
+  *   return c.notFound()
+  * })
+  * ```
+  */
   notFound = () => {
     this.#notFoundHandler ??= () => createResponseInstance();
     return this.#notFoundHandler(this);
   };
 };
 
+// node_modules/hono/dist/compose.js
+var compose = (middleware, onError, onNotFound) => {
+  return (context, next) => {
+    let index = -1;
+    return dispatch(0);
+    async function dispatch(i) {
+      if (i <= index) throw new Error("next() called multiple times");
+      index = i;
+      let res;
+      let isError = false;
+      let handler;
+      if (middleware[i]) {
+        handler = middleware[i][0][0];
+        context.req.routeIndex = i;
+      } else handler = i === middleware.length && next || void 0;
+      if (handler) try {
+        res = await handler(context, () => dispatch(i + 1));
+      } catch (err) {
+        if (err instanceof Error && onError) {
+          context.error = err;
+          res = await onError(err, context);
+          isError = true;
+        } else throw err;
+      }
+      else if (context.finalized === false && onNotFound) res = await onNotFound(context);
+      if (res && (context.finalized === false || isError)) context.res = res;
+      return context;
+    }
+  };
+};
+
 // node_modules/hono/dist/router.js
-var METHOD_NAME_ALL = "ALL";
-var METHOD_NAME_ALL_LOWERCASE = "all";
-var METHODS = ["get", "post", "put", "delete", "options", "patch", "query"];
+var METHODS = [
+  "get",
+  "post",
+  "put",
+  "delete",
+  "options",
+  "patch",
+  "query"
+];
 var MESSAGE_MATCHER_IS_ALREADY_BUILT = "Can not add a route since the matcher is already built.";
 var UnsupportedPathError = class extends Error {
 };
@@ -1147,7 +991,7 @@ var errorHandler = (err, c) => {
   console.error(err);
   return c.text("Internal Server Error", 500);
 };
-var Hono = class _Hono {
+var Hono = class Hono2 {
   get;
   post;
   put;
@@ -1158,26 +1002,17 @@ var Hono = class _Hono {
   all;
   on;
   use;
-  /*
-    This class is like an abstract class and does not have a router.
-    To use it, inherit the class and implement router in the constructor.
-  */
   router;
   getPath;
-  // Cannot use `#` because it requires visibility at JavaScript runtime.
   _basePath = "/";
   #path = "/";
   routes = [];
   constructor(options = {}) {
-    const allMethods = [...METHODS, METHOD_NAME_ALL_LOWERCASE];
-    allMethods.forEach((method) => {
+    [...METHODS, "all"].forEach((method) => {
       this[method] = (args1, ...args) => {
         const methodName = method.toUpperCase();
-        if (typeof args1 === "string") {
-          this.#path = args1;
-        } else {
-          this.#addRoute(methodName, this.#path, args1);
-        }
+        if (typeof args1 === "string") this.#path = args1;
+        else this.#addRoute(methodName, this.#path, args1);
         args.forEach((handler) => {
           this.#addRoute(methodName, this.#path, handler);
         });
@@ -1189,22 +1024,19 @@ var Hono = class _Hono {
         this.#path = p;
         for (const m of [method].flat()) {
           const methodName = m.toUpperCase();
-          for (const handler of handlers) {
-            this.#addRoute(methodName, this.#path, handler);
-          }
+          for (const handler of handlers) this.#addRoute(methodName, this.#path, handler);
         }
       }
       return this;
     };
     this.use = (arg1, ...handlers) => {
-      if (typeof arg1 === "string") {
-        this.#path = arg1;
-      } else {
+      if (typeof arg1 === "string") this.#path = arg1;
+      else {
         this.#path = "*";
         handlers.unshift(arg1);
       }
       handlers.forEach((handler) => {
-        this.#addRoute(METHOD_NAME_ALL, this.#path, handler);
+        this.#addRoute("ALL", this.#path, handler);
       });
       return this;
     };
@@ -1213,7 +1045,7 @@ var Hono = class _Hono {
     this.getPath = strict ?? true ? options.getPath ?? getPath : getPathNoStrict;
   }
   #clone() {
-    const clone2 = new _Hono({
+    const clone2 = new Hono2({
       router: this.router,
       getPath: this.getPath
     });
@@ -1223,33 +1055,31 @@ var Hono = class _Hono {
     return clone2;
   }
   #notFoundHandler = notFoundHandler;
-  // Cannot use `#` because it requires visibility at JavaScript runtime.
   errorHandler = errorHandler;
   /**
-   * `.route()` allows grouping other Hono instance in routes.
-   *
-   * @see {@link https://hono.dev/docs/api/routing#grouping}
-   *
-   * @param {string} path - base Path
-   * @param {Hono} app - other Hono instance
-   * @returns {Hono} routed Hono instance
-   *
-   * @example
-   * ```ts
-   * const app = new Hono()
-   * const app2 = new Hono()
-   *
-   * app2.get("/user", (c) => c.text("user"))
-   * app.route("/api", app2) // GET /api/user
-   * ```
-   */
+  * `.route()` allows grouping other Hono instance in routes.
+  *
+  * @see {@link https://hono.dev/docs/api/routing#grouping}
+  *
+  * @param {string} path - base Path
+  * @param {Hono} app - other Hono instance
+  * @returns {Hono} routed Hono instance
+  *
+  * @example
+  * ```ts
+  * const app = new Hono()
+  * const app2 = new Hono()
+  *
+  * app2.get("/user", (c) => c.text("user"))
+  * app.route("/api", app2) // GET /api/user
+  * ```
+  */
   route(path, app2) {
     const subApp = this.basePath(path);
     app2.routes.map((r) => {
       let handler;
-      if (app2.errorHandler === errorHandler) {
-        handler = r.handler;
-      } else {
+      if (app2.errorHandler === errorHandler) handler = r.handler;
+      else {
         handler = async (c, next) => (await compose([], app2.errorHandler)(c, () => r.handler(c, next))).res;
         handler[COMPOSED_HANDLER] = r.handler;
       }
@@ -1258,107 +1088,105 @@ var Hono = class _Hono {
     return this;
   }
   /**
-   * `.basePath()` allows base paths to be specified.
-   *
-   * @see {@link https://hono.dev/docs/api/routing#base-path}
-   *
-   * @param {string} path - base Path
-   * @returns {Hono} changed Hono instance
-   *
-   * @example
-   * ```ts
-   * const api = new Hono().basePath('/api')
-   * ```
-   */
+  * `.basePath()` allows base paths to be specified.
+  *
+  * @see {@link https://hono.dev/docs/api/routing#base-path}
+  *
+  * @param {string} path - base Path
+  * @returns {Hono} changed Hono instance
+  *
+  * @example
+  * ```ts
+  * const api = new Hono().basePath('/api')
+  * ```
+  */
   basePath(path) {
     const subApp = this.#clone();
     subApp._basePath = mergePath(this._basePath, path);
     return subApp;
   }
   /**
-   * `.onError()` handles an error and returns a customized Response.
-   *
-   * @see {@link https://hono.dev/docs/api/hono#error-handling}
-   *
-   * @param {ErrorHandler} handler - request Handler for error
-   * @returns {Hono} changed Hono instance
-   *
-   * @example
-   * ```ts
-   * app.onError((err, c) => {
-   *   console.error(`${err}`)
-   *   return c.text('Custom Error Message', 500)
-   * })
-   * ```
-   */
+  * `.onError()` handles an error and returns a customized Response.
+  *
+  * @see {@link https://hono.dev/docs/api/hono#error-handling}
+  *
+  * @param {ErrorHandler} handler - request Handler for error
+  * @returns {Hono} changed Hono instance
+  *
+  * @example
+  * ```ts
+  * app.onError((err, c) => {
+  *   console.error(`${err}`)
+  *   return c.text('Custom Error Message', 500)
+  * })
+  * ```
+  */
   onError = (handler) => {
     this.errorHandler = handler;
     return this;
   };
   /**
-   * `.notFound()` allows you to customize a Not Found Response.
-   *
-   * @see {@link https://hono.dev/docs/api/hono#not-found}
-   *
-   * @param {NotFoundHandler} handler - request handler for not-found
-   * @returns {Hono} changed Hono instance
-   *
-   * @example
-   * ```ts
-   * app.notFound((c) => {
-   *   return c.text('Custom 404 Message', 404)
-   * })
-   * ```
-   */
+  * `.notFound()` allows you to customize a Not Found Response.
+  *
+  * @see {@link https://hono.dev/docs/api/hono#not-found}
+  *
+  * @param {NotFoundHandler} handler - request handler for not-found
+  * @returns {Hono} changed Hono instance
+  *
+  * @example
+  * ```ts
+  * app.notFound((c) => {
+  *   return c.text('Custom 404 Message', 404)
+  * })
+  * ```
+  */
   notFound = (handler) => {
     this.#notFoundHandler = handler;
     return this;
   };
   /**
-   * `.mount()` allows you to mount applications built with other frameworks into your Hono application.
-   *
-   * @see {@link https://hono.dev/docs/api/hono#mount}
-   *
-   * @param {string} path - base Path
-   * @param {Function} applicationHandler - other Request Handler
-   * @param {MountOptions} [options] - options of `.mount()`
-   * @returns {Hono} mounted Hono instance
-   *
-   * @example
-   * ```ts
-   * import { Router as IttyRouter } from 'itty-router'
-   * import { Hono } from 'hono'
-   * // Create itty-router application
-   * const ittyRouter = IttyRouter()
-   * // GET /itty-router/hello
-   * ittyRouter.get('/hello', () => new Response('Hello from itty-router'))
-   *
-   * const app = new Hono()
-   * app.mount('/itty-router', ittyRouter.handle)
-   * ```
-   *
-   * @example
-   * ```ts
-   * const app = new Hono()
-   * // Send the request to another application without modification.
-   * app.mount('/app', anotherApp, {
-   *   replaceRequest: (req) => req,
-   * })
-   * ```
-   */
+  * `.mount()` allows you to mount applications built with other frameworks into your Hono application.
+  *
+  * @deprecated Use `mount()` from `hono/mount` instead. `.mount()` will be removed in v5.
+  *
+  * @see {@link https://hono.dev/docs/api/hono#mount}
+  *
+  * @param {string} path - base Path
+  * @param {Function} applicationHandler - other Request Handler
+  * @param {MountOptions} [options] - options of `.mount()`
+  * @returns {Hono} mounted Hono instance
+  *
+  * @example
+  * ```ts
+  * import { Router as IttyRouter } from 'itty-router'
+  * import { Hono } from 'hono'
+  * // Create itty-router application
+  * const ittyRouter = IttyRouter()
+  * // GET /itty-router/hello
+  * ittyRouter.get('/hello', () => new Response('Hello from itty-router'))
+  *
+  * const app = new Hono()
+  * app.mount('/itty-router', ittyRouter.handle)
+  * ```
+  *
+  * @example
+  * ```ts
+  * const app = new Hono()
+  * // Send the request to another application without modification.
+  * app.mount('/app', anotherApp, {
+  *   replaceRequest: (req) => req,
+  * })
+  * ```
+  */
   mount(path, applicationHandler, options) {
     let replaceRequest;
     let optionHandler;
     if (options) {
-      if (typeof options === "function") {
-        optionHandler = options;
-      } else {
+      if (typeof options === "function") optionHandler = options;
+      else {
         optionHandler = options.optionHandler;
-        if (options.replaceRequest === false) {
-          replaceRequest = (request) => request;
-        } else {
-          replaceRequest = options.replaceRequest;
-        }
+        if (options.replaceRequest === false) replaceRequest = (request) => request;
+        else replaceRequest = options.replaceRequest;
       }
     }
     const getOptions = optionHandler ? (c) => {
@@ -1383,12 +1211,10 @@ var Hono = class _Hono {
     })();
     const handler = async (c, next) => {
       const res = await applicationHandler(replaceRequest(c.req.raw), ...getOptions(c));
-      if (res) {
-        return res;
-      }
+      if (res) return res;
       await next();
     };
-    this.#addRoute(METHOD_NAME_ALL, mergePath(path, "*"), handler);
+    this.#addRoute("ALL", mergePath(path, "*"), handler);
     return this;
   }
   #addRoute(method, path, handler, baseRoutePath) {
@@ -1403,15 +1229,11 @@ var Hono = class _Hono {
     this.routes.push(r);
   }
   #handleError(err, c) {
-    if (err instanceof Error) {
-      return this.errorHandler(err, c);
-    }
+    if (err instanceof Error) return this.errorHandler(err, c);
     throw err;
   }
   #dispatch(request, executionCtx, env, method) {
-    if (method === "HEAD") {
-      return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
-    }
+    if (method === "HEAD") return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
     const path = this.getPath(request, { env });
     const matchResult = this.router.match(method, path);
     const c = new Context(request, {
@@ -1430,19 +1252,13 @@ var Hono = class _Hono {
       } catch (err) {
         return this.#handleError(err, c);
       }
-      return res instanceof Promise ? res.then(
-        (resolved) => resolved || (c.finalized ? c.res : this.#notFoundHandler(c))
-      ).catch((err) => this.#handleError(err, c)) : res ?? this.#notFoundHandler(c);
+      return res instanceof Promise ? res.then((resolved) => resolved || (c.finalized ? c.res : this.#notFoundHandler(c))).catch((err) => this.#handleError(err, c)) : res ?? this.#notFoundHandler(c);
     }
     const composed = compose(matchResult[0], this.errorHandler, this.#notFoundHandler);
     return (async () => {
       try {
         const context = await composed(c);
-        if (!context.finalized) {
-          throw new Error(
-            "Context is not finalized. Did you forget to return a Response object or `await next()`?"
-          );
-        }
+        if (!context.finalized) throw new Error("Context is not finalized. Did you forget to return a Response object or `await next()`?");
         return context.res;
       } catch (err) {
         return this.#handleError(err, c);
@@ -1450,62 +1266,53 @@ var Hono = class _Hono {
     })();
   }
   /**
-   * `.fetch()` will be entry point of your app.
-   *
-   * @see {@link https://hono.dev/docs/api/hono#fetch}
-   *
-   * @param {Request} request - request Object of request
-   * @param {Env} env - env Object
-   * @param {ExecutionContext} executionCtx - context of execution
-   * @returns {Response | Promise<Response>} response of request
-   *
-   */
+  * `.fetch()` will be entry point of your app.
+  *
+  * @see {@link https://hono.dev/docs/api/hono#fetch}
+  *
+  * @param {Request} request - request Object of request
+  * @param {Env} env - env Object
+  * @param {ExecutionContext} executionCtx - context of execution
+  * @returns {Response | Promise<Response>} response of request
+  *
+  */
   fetch = (request, ...rest) => {
     return this.#dispatch(request, rest[1], rest[0], request.method);
   };
   /**
-   * `.request()` is a useful method for testing.
-   * You can pass a URL or pathname to send a GET request.
-   * app will return a Response object.
-   * ```ts
-   * test('GET /hello is ok', async () => {
-   *   const res = await app.request('/hello')
-   *   expect(res.status).toBe(200)
-   * })
-   * ```
-   * @see https://hono.dev/docs/api/hono#request
-   */
+  * `.request()` is a useful method for testing.
+  * You can pass a URL or pathname to send a GET request.
+  * app will return a Response object.
+  * ```ts
+  * test('GET /hello is ok', async () => {
+  *   const res = await app.request('/hello')
+  *   expect(res.status).toBe(200)
+  * })
+  * ```
+  * @see https://hono.dev/docs/api/hono#request
+  */
   request = (input2, requestInit, Env, executionCtx) => {
-    if (input2 instanceof Request) {
-      return this.fetch(requestInit ? new Request(input2, requestInit) : input2, Env, executionCtx);
-    }
+    if (input2 instanceof Request) return this.fetch(requestInit ? new Request(input2, requestInit) : input2, Env, executionCtx);
     input2 = input2.toString();
-    return this.fetch(
-      new Request(
-        /^https?:\/\//.test(input2) ? input2 : `http://localhost${mergePath("/", input2)}`,
-        requestInit
-      ),
-      Env,
-      executionCtx
-    );
+    return this.fetch(new Request(/^https?:\/\//.test(input2) ? input2 : `http://localhost${mergePath("/", input2)}`, requestInit), Env, executionCtx);
   };
   /**
-   * `.fire()` automatically adds a global fetch event listener.
-   * This can be useful for environments that adhere to the Service Worker API, such as non-ES module Cloudflare Workers.
-   * @deprecated
-   * Use `fire` from `hono/service-worker` instead.
-   * ```ts
-   * import { Hono } from 'hono'
-   * import { fire } from 'hono/service-worker'
-   *
-   * const app = new Hono()
-   * // ...
-   * fire(app)
-   * ```
-   * @see https://hono.dev/docs/api/hono#fire
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API
-   * @see https://developers.cloudflare.com/workers/reference/migrate-to-module-workers/
-   */
+  * `.fire()` automatically adds a global fetch event listener.
+  * This can be useful for environments that adhere to the Service Worker API, such as non-ES module Cloudflare Workers.
+  * @deprecated
+  * Use `fire` from `hono/service-worker` instead.
+  * ```ts
+  * import { Hono } from 'hono'
+  * import { fire } from 'hono/service-worker'
+  *
+  * const app = new Hono()
+  * // ...
+  * fire(app)
+  * ```
+  * @see https://hono.dev/docs/api/hono#fire
+  * @see https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API
+  * @see https://developers.cloudflare.com/workers/reference/migrate-to-module-workers/
+  */
   fire = () => {
     addEventListener("fetch", (event) => {
       event.respondWith(this.#dispatch(event.request, event, void 0, event.request.method));
@@ -1521,15 +1328,11 @@ var emptyParam = [];
 function match(method, path) {
   const matchers = this.buildAllMatchers();
   const match2 = ((method2, path2) => {
-    const matcher = matchers[method2] || matchers[METHOD_NAME_ALL];
+    const matcher = matchers[method2] || matchers["ALL"];
     const staticMatch = matcher[2][path2];
-    if (staticMatch) {
-      return staticMatch;
-    }
+    if (staticMatch) return staticMatch;
     const match3 = path2.match(matcher[0]);
-    if (!match3) {
-      return [[], emptyParam];
-    }
+    if (!match3) return [[], emptyParam];
     const index = match3.indexOf("", 1);
     return [matcher[1][index], match3];
   });
@@ -1539,31 +1342,19 @@ function match(method, path) {
 
 // node_modules/hono/dist/router/reg-exp-router/node.js
 var LABEL_REG_EXP_STR = "[^/]+";
-var ONLY_WILDCARD_REG_EXP_STR = ".*";
 var TAIL_WILDCARD_REG_EXP_STR = "(?:|/.*)";
-var PATH_ERROR = /* @__PURE__ */ Symbol();
-var regExpMetaChars = new Set(".\\+*[^]$()");
+var PATH_ERROR = Symbol();
+var regExpMetaChars = /* @__PURE__ */ new Set(".\\+*[^]$()");
 function compareKey(a, b) {
-  if (a.length === 1) {
-    return b.length === 1 ? a < b ? -1 : 1 : -1;
-  }
-  if (b.length === 1) {
-    return 1;
-  }
-  if (a === ONLY_WILDCARD_REG_EXP_STR || a === TAIL_WILDCARD_REG_EXP_STR) {
-    return b === TAIL_WILDCARD_REG_EXP_STR ? -1 : 1;
-  } else if (b === ONLY_WILDCARD_REG_EXP_STR || b === TAIL_WILDCARD_REG_EXP_STR) {
-    return -1;
-  }
-  if (a === LABEL_REG_EXP_STR) {
-    return 1;
-  } else if (b === LABEL_REG_EXP_STR) {
-    return -1;
-  }
+  if (a.length === 1) return b.length === 1 ? a < b ? -1 : 1 : -1;
+  if (b.length === 1) return 1;
+  if (a === ".*" || a === "(?:|/.*)") return b === "(?:|/.*)" ? -1 : 1;
+  else if (b === ".*" || b === "(?:|/.*)") return -1;
+  if (a === "[^/]+") return 1;
+  else if (b === "[^/]+") return -1;
   return a.length === b.length ? a < b ? -1 : 1 : b.length - a.length;
 }
-var Node = class _Node {
-  // handler index of a dynamic path, or -1 for a static path terminal
+var Node = class Node2 {
   #index;
   #varIndex;
   #children = createNullObject();
@@ -1571,36 +1362,35 @@ var Node = class _Node {
     let node2 = this;
     for (let i = 0, len = tokens.length; i < len; i++) {
       const token = tokens[i];
-      const pattern = token.length === 1 ? token === "*" ? i === len - 1 ? ["", "", ONLY_WILDCARD_REG_EXP_STR] : ["", "", LABEL_REG_EXP_STR] : null : token === "/*" ? ["", "", TAIL_WILDCARD_REG_EXP_STR] : token.match(/^\:([^\{\}]+)(?:\{(.+)\})?$/);
+      const pattern = token.length === 1 ? token === "*" ? i === len - 1 ? [
+        "",
+        "",
+        ".*"
+      ] : [
+        "",
+        "",
+        LABEL_REG_EXP_STR
+      ] : null : token === "/*" ? [
+        "",
+        "",
+        TAIL_WILDCARD_REG_EXP_STR
+      ] : token.match(/^\:([^\{\}]+)(?:\{(.+)\})?$/);
       let nextNode;
       if (pattern) {
         const name2 = pattern[1];
-        let regexpStr = pattern[2] || LABEL_REG_EXP_STR;
+        let regexpStr = pattern[2] || "[^/]+";
         if (name2 && pattern[2]) {
-          if (regexpStr === ".*") {
-            throw PATH_ERROR;
-          }
+          if (regexpStr === ".*") throw PATH_ERROR;
           regexpStr = regexpStr.replace(/^\((?!\?:)(?=[^)]+\)$)/, "(?:");
-          if (/\((?!\?:)/.test(regexpStr)) {
-            throw PATH_ERROR;
-          }
-          if (regexpStr.length === 1 && regExpMetaChars.has(regexpStr)) {
-            throw PATH_ERROR;
-          }
+          if (/\((?!\?:)/.test(regexpStr)) throw PATH_ERROR;
+          if (regexpStr.length === 1 && regExpMetaChars.has(regexpStr)) throw PATH_ERROR;
         }
         nextNode = node2.#children[regexpStr];
         if (!nextNode) {
-          if (regexpStr !== ONLY_WILDCARD_REG_EXP_STR && regexpStr !== TAIL_WILDCARD_REG_EXP_STR) {
-            for (const k in node2.#children) {
-              if (
-                // a single-char pattern coexists with single-char literals as a literal does
-                (regexpStr.length > 1 || k.length > 1) && k !== ONLY_WILDCARD_REG_EXP_STR && k !== TAIL_WILDCARD_REG_EXP_STR
-              ) {
-                throw PATH_ERROR;
-              }
-            }
+          if (regexpStr !== ".*" && regexpStr !== "(?:|/.*)") {
+            for (const k in node2.#children) if ((regexpStr.length > 1 || k.length > 1) && k !== ".*" && k !== "(?:|/.*)") throw PATH_ERROR;
           }
-          nextNode = node2.#children[regexpStr] = new _Node();
+          nextNode = node2.#children[regexpStr] = new Node2();
         }
         if (name2 !== "") {
           nextNode.#varIndex ??= context.varIndex++;
@@ -1609,37 +1399,24 @@ var Node = class _Node {
       } else {
         nextNode = node2.#children[token];
         if (!nextNode) {
-          for (const k in node2.#children) {
-            if (k.length > 1 && k !== ONLY_WILDCARD_REG_EXP_STR && k !== TAIL_WILDCARD_REG_EXP_STR) {
-              throw PATH_ERROR;
-            }
-          }
-          nextNode = node2.#children[token] = new _Node();
+          for (const k in node2.#children) if (k.length > 1 && k !== ".*" && k !== "(?:|/.*)") throw PATH_ERROR;
+          nextNode = node2.#children[token] = new Node2();
         }
       }
       node2 = nextNode;
     }
-    if (node2.#index !== void 0) {
-      throw PATH_ERROR;
-    }
+    if (node2.#index !== void 0) throw PATH_ERROR;
     node2.#index = isStatic ? -1 : index;
   }
   buildRegExpStr() {
-    const childKeys = Object.keys(this.#children).sort(compareKey);
-    const strList = childKeys.map((k) => {
+    const strList = Object.keys(this.#children).sort(compareKey).map((k) => {
       const c = this.#children[k];
       const childStr = c.buildRegExpStr();
       return childStr === "" ? "" : (typeof c.#varIndex === "number" ? `(${k})@${c.#varIndex}` : regExpMetaChars.has(k) ? `\\${k}` : k) + childStr;
     }).filter(Boolean);
-    if (typeof this.#index === "number" && this.#index !== -1) {
-      strList.unshift(`#${this.#index}`);
-    }
-    if (strList.length === 0) {
-      return "";
-    }
-    if (strList.length === 1) {
-      return strList[0];
-    }
+    if (typeof this.#index === "number" && this.#index !== -1) strList.unshift(`#${this.#index}`);
+    if (strList.length === 0) return "";
+    if (strList.length === 1) return strList[0];
     return "(?:" + strList.join("|") + ")";
   }
 };
@@ -1649,7 +1426,6 @@ var Trie = class {
   #context = { varIndex: 0 };
   #root = new Node();
   #index = 0;
-  // dynamic path -> [handler index, param assoc]; static paths are not registered
   paths = createNullObject();
   insert(path, isStatic) {
     if (isStatic) {
@@ -1668,18 +1444,14 @@ var Trie = class {
         replaced = true;
         return mark;
       });
-      if (!replaced) {
-        break;
-      }
+      if (!replaced) break;
     }
     const tokens = markedPath.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
     for (let i = groups.length - 1; i >= 0; i--) {
       const [mark] = groups[i];
-      for (let j = tokens.length - 1; j >= 0; j--) {
-        if (tokens[j].indexOf(mark) !== -1) {
-          tokens[j] = tokens[j].replace(mark, groups[i][1]);
-          break;
-        }
+      for (let j = tokens.length - 1; j >= 0; j--) if (tokens[j].indexOf(mark) !== -1) {
+        tokens[j] = tokens[j].replace(mark, groups[i][1]);
+        break;
       }
     }
     this.#root.insert(tokens, this.#index, paramAssoc, this.#context, false);
@@ -1687,9 +1459,11 @@ var Trie = class {
   }
   buildRegExp() {
     let regexp = this.#root.buildRegExpStr();
-    if (regexp === "") {
-      return [/^$/, [], []];
-    }
+    if (regexp === "") return [
+      /^$/,
+      [],
+      []
+    ];
     let captureIndex = 0;
     const indexReplacementMap = [];
     const paramReplacementMap = [];
@@ -1704,27 +1478,21 @@ var Trie = class {
       }
       return "";
     });
-    return [new RegExp(`^${regexp}`), indexReplacementMap, paramReplacementMap];
+    return [
+      new RegExp(`^${regexp}`),
+      indexReplacementMap,
+      paramReplacementMap
+    ];
   }
 };
 
 // node_modules/hono/dist/router/reg-exp-router/router.js
 var wildcardRegExpCache = createNullObject();
 function buildWildcardRegExp(path) {
-  return wildcardRegExpCache[path] ??= new RegExp(
-    `^${path.replace(
-      /\/:[^/{}]+(?:\{\[\^\/]\+})?(?=[/{]|$)|\/?\*$|([.\\+*[^\]$()?{}|])/g,
-      (match2, metaChar) => metaChar ? `\\${metaChar}` : match2 === "/*" ? TAIL_WILDCARD_REG_EXP_STR : match2 === "*" ? ONLY_WILDCARD_REG_EXP_STR : `/:${LABEL_REG_EXP_STR}`
-    )}$`
-  );
+  return wildcardRegExpCache[path] ??= new RegExp(`^${path.replace(/\/:[^/{}]+(?:\{\[\^\/]\+})?(?=[/{]|$)|\/?\*$|([.\\+*[^\]$()?{}|])/g, (match2, metaChar) => metaChar ? `\\${metaChar}` : match2 === "/*" ? TAIL_WILDCARD_REG_EXP_STR : match2 === "*" ? ".*" : `/:${LABEL_REG_EXP_STR}`)}$`);
 }
 function findMiddleware(middleware, path) {
-  for (const k of Object.keys(middleware).sort((a, b) => b.length - a.length)) {
-    if (buildWildcardRegExp(k).test(path)) {
-      return [...middleware[k]];
-    }
-  }
-  return void 0;
+  for (const k of Object.keys(middleware).sort((a, b) => b.length - a.length)) if (buildWildcardRegExp(k).test(path)) return [...middleware[k]];
 }
 var RegExpRouter = class {
   name = "RegExpRouter";
@@ -1732,9 +1500,9 @@ var RegExpRouter = class {
   #routes;
   #tries;
   constructor() {
-    this.#middleware = { [METHOD_NAME_ALL]: createNullObject() };
-    this.#routes = { [METHOD_NAME_ALL]: createNullObject() };
-    this.#tries = { [METHOD_NAME_ALL]: new Trie() };
+    this.#middleware = { ["ALL"]: createNullObject() };
+    this.#routes = { ["ALL"]: createNullObject() };
+    this.#tries = { ["ALL"]: new Trie() };
   }
   #insertPath(method, path) {
     try {
@@ -1746,57 +1514,41 @@ var RegExpRouter = class {
   add(method, path, handler) {
     const middleware = this.#middleware;
     const routes = this.#routes;
-    if (!middleware) {
-      throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
-    }
+    if (!middleware) throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
     if (!middleware[method]) {
       this.#tries[method] = new Trie();
       for (const handlerMap of [middleware, routes]) {
         handlerMap[method] = createNullObject();
-        for (const p in handlerMap[METHOD_NAME_ALL]) {
-          handlerMap[method][p] = [...handlerMap[METHOD_NAME_ALL][p]];
+        for (const p in handlerMap["ALL"]) {
+          handlerMap[method][p] = [...handlerMap["ALL"][p]];
           this.#insertPath(method, p);
         }
       }
     }
-    if (path === "/*") {
-      path = "*";
-    }
-    const methods = method === METHOD_NAME_ALL ? Object.keys(middleware) : [method];
+    if (path === "/*") path = "*";
+    const methods = method === "ALL" ? Object.keys(middleware) : [method];
     if (/\*$/.test(path)) {
       const re = buildWildcardRegExp(path);
-      for (const m of methods) {
-        if (!middleware[m][path]) {
-          this.#insertPath(m, path);
-          middleware[m][path] = findMiddleware(middleware[m], path) || findMiddleware(middleware[METHOD_NAME_ALL], path) || [];
-        }
+      for (const m of methods) if (!middleware[m][path]) {
+        this.#insertPath(m, path);
+        middleware[m][path] = findMiddleware(middleware[m], path) || findMiddleware(middleware["ALL"], path) || [];
       }
-      for (const handlerMap of [middleware, routes]) {
-        for (const m of methods) {
-          for (const p in handlerMap[m]) {
-            re.test(p) && handlerMap[m][p].push([handler, path]);
-          }
-        }
-      }
+      for (const handlerMap of [middleware, routes]) for (const m of methods) for (const p in handlerMap[m]) re.test(p) && handlerMap[m][p].push([handler, path]);
       return;
     }
     const paths = checkOptionalParameter(path) || [path];
-    for (const path2 of paths) {
-      for (const m of methods) {
-        if (!routes[m][path2]) {
-          this.#insertPath(m, path2);
-          routes[m][path2] = findMiddleware(middleware[m], path2) || findMiddleware(middleware[METHOD_NAME_ALL], path2) || [];
-        }
-        routes[m][path2].push([handler, path2]);
+    for (const path2 of paths) for (const m of methods) {
+      if (!routes[m][path2]) {
+        this.#insertPath(m, path2);
+        routes[m][path2] = findMiddleware(middleware[m], path2) || findMiddleware(middleware["ALL"], path2) || [];
       }
+      routes[m][path2].push([handler, path2]);
     }
   }
   match = match;
   buildAllMatchers() {
     const matchers = createNullObject();
-    for (const method of Object.keys(this.#routes)) {
-      matchers[method] = this.#buildMatcher(method);
-    }
+    for (const method of Object.keys(this.#routes)) matchers[method] = this.#buildMatcher(method);
     this.#middleware = this.#routes = this.#tries = void 0;
     wildcardRegExpCache = createNullObject();
     return matchers;
@@ -1808,24 +1560,23 @@ var RegExpRouter = class {
     const staticMap = createNullObject();
     const handlerData = [];
     const [regexp, indexReplacementMap, paramReplacementMap] = trie.buildRegExp();
-    for (const r of [middleware, routes]) {
-      for (const path in r) {
-        const handlers = r[path];
-        const pathData = trie.paths[path];
-        if (!pathData) {
-          staticMap[path] = [handlers.map(([h]) => [h, createNullObject()]), emptyParam];
-          continue;
-        }
-        handlerData[pathData[0]] = handlers.map(([h, handlerPath]) => [
-          h,
-          trie.paths[handlerPath][1].reduceRight((map2, [key], i) => {
-            map2[key] = paramReplacementMap[pathData[1][i][1]];
-            return map2;
-          }, createNullObject())
-        ]);
+    for (const r of [middleware, routes]) for (const path in r) {
+      const handlers = r[path];
+      const pathData = trie.paths[path];
+      if (!pathData) {
+        staticMap[path] = [handlers.map(([h]) => [h, createNullObject()]), emptyParam];
+        continue;
       }
+      handlerData[pathData[0]] = handlers.map(([h, handlerPath]) => [h, trie.paths[handlerPath][1].reduceRight((map2, [key], i) => {
+        map2[key] = paramReplacementMap[pathData[1][i][1]];
+        return map2;
+      }, createNullObject())]);
     }
-    return [regexp, indexReplacementMap.map((i) => handlerData[i]), staticMap];
+    return [
+      regexp,
+      indexReplacementMap.map((i) => handlerData[i]),
+      staticMap
+    ];
   }
 };
 
@@ -1838,15 +1589,15 @@ var SmartRouter = class {
     this.#routers = init.routers;
   }
   add(method, path, handler) {
-    if (!this.#routes) {
-      throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
-    }
-    this.#routes.push([method, path, handler]);
+    if (!this.#routes) throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
+    this.#routes.push([
+      method,
+      path,
+      handler
+    ]);
   }
   match(method, path) {
-    if (!this.#routes) {
-      throw new Error("Fatal error");
-    }
+    if (!this.#routes) throw new Error("Fatal error");
     const routers = this.#routers;
     const routes = this.#routes;
     const len = routers.length;
@@ -1855,14 +1606,10 @@ var SmartRouter = class {
     for (; i < len; i++) {
       const router = routers[i];
       try {
-        for (let i2 = 0, len2 = routes.length; i2 < len2; i2++) {
-          router.add(...routes[i2]);
-        }
+        for (let i2 = 0, len2 = routes.length; i2 < len2; i2++) router.add(...routes[i2]);
         res = router.match(method, path);
       } catch (e) {
-        if (e instanceof UnsupportedPathError) {
-          continue;
-        }
+        if (e instanceof UnsupportedPathError) continue;
         throw e;
       }
       this.match = router.match.bind(router);
@@ -1870,16 +1617,12 @@ var SmartRouter = class {
       this.#routes = void 0;
       break;
     }
-    if (i === len) {
-      throw new Error("Fatal error");
-    }
+    if (i === len) throw new Error("Fatal error");
     this.name = `SmartRouter + ${this.activeRouter.name}`;
     return res;
   }
   get activeRouter() {
-    if (this.#routes || this.#routers.length !== 1) {
-      throw new Error("No active router has been determined yet.");
-    }
+    if (this.#routes || this.#routers.length !== 1) throw new Error("No active router has been determined yet.");
     return this.#routers[0];
   }
 };
@@ -1887,7 +1630,7 @@ var SmartRouter = class {
 // node_modules/hono/dist/router/trie-router/node.js
 var emptyParams = createNullObject();
 var order = 0;
-var Node2 = class _Node2 {
+var Node3 = class Node4 {
   #methods = [];
   #children = createNullObject();
   #patterns = [];
@@ -1903,28 +1646,24 @@ var Node2 = class _Node2 {
       const pattern = getPattern(p, nextP) || (nextP === void 0 && p && p.indexOf("*") === p.length - 1 ? p : null);
       const isParam = Array.isArray(pattern);
       const key = isParam ? pattern[0] : pattern || p;
-      const child = curNode.#children[key] ||= new _Node2();
+      const child = curNode.#children[key] ||= new Node4();
       if (pattern && !child.#pattern) {
         child.#pattern = pattern;
         curNode.#patterns.push(child);
       }
       curNode = child;
-      if (isParam) {
-        possibleKeys.add(pattern[1]);
-      }
+      if (isParam) possibleKeys.add(pattern[1]);
     }
-    curNode.#methods.push({
-      [method]: {
-        handler,
-        possibleKeys: [...possibleKeys],
-        score: ++order
-      }
-    });
+    curNode.#methods.push({ [method]: {
+      handler,
+      possibleKeys: [...possibleKeys],
+      score: ++order
+    } });
   }
   #pushHandlerSets(handlerSets, node2, method, nodeParams, params) {
     for (let i = 0, len = node2.#methods.length; i < len; i++) {
       const m = node2.#methods[i];
-      const handlerSet = m[method] || m[METHOD_NAME_ALL];
+      const handlerSet = m[method] || m["ALL"];
       if (handlerSet) {
         handlerSet.params = createNullObject();
         handlerSets.push(handlerSet);
@@ -1938,8 +1677,7 @@ var Node2 = class _Node2 {
   search(method, path) {
     const handlerSets = [];
     this.#params = emptyParams;
-    const curNode = this;
-    let curNodes = [curNode];
+    let curNodes = [this];
     const parts = splitPath(path);
     const curNodesQueue = [];
     const len = parts.length;
@@ -1954,13 +1692,9 @@ var Node2 = class _Node2 {
         if (nextNode) {
           nextNode.#params = node2.#params;
           if (isLast) {
-            if (nextNode.#children["*"]) {
-              this.#pushHandlerSets(handlerSets, nextNode.#children["*"], method, node2.#params);
-            }
+            if (nextNode.#children["*"]) this.#pushHandlerSets(handlerSets, nextNode.#children["*"], method, node2.#params);
             this.#pushHandlerSets(handlerSets, nextNode, method, node2.#params);
-          } else {
-            tempNodes.push(nextNode);
-          }
+          } else tempNodes.push(nextNode);
         }
         for (const child of node2.#patterns) {
           const pattern = child.#pattern;
@@ -1976,9 +1710,7 @@ var Node2 = class _Node2 {
             continue;
           }
           const [, name2, matcher] = pattern;
-          if (!part && matcher === true) {
-            continue;
-          }
+          if (!part && matcher === true) continue;
           if (matcher !== true) {
             if (!partOffsets) {
               partOffsets = [];
@@ -1993,20 +1725,11 @@ var Node2 = class _Node2 {
             if (m) {
               params[name2] = m[0];
               this.#pushHandlerSets(handlerSets, child, method, node2.#params, params);
-              if (m[0].length === restPathString.length && child.#children["*"]) {
-                this.#pushHandlerSets(
-                  handlerSets,
-                  child.#children["*"],
-                  method,
-                  node2.#params,
-                  params
-                );
-              }
+              if (m[0].length === restPathString.length && child.#children["*"]) this.#pushHandlerSets(handlerSets, child.#children["*"], method, node2.#params, params);
               for (const _ in child.#children) {
                 child.#params = params;
                 const componentCount = m[0].match(/\//g)?.length ?? 0;
-                const targetCurNodes = curNodesQueue[componentCount] ||= [];
-                targetCurNodes.push(child);
+                (curNodesQueue[componentCount] ||= []).push(child);
                 break;
               }
               continue;
@@ -2016,15 +1739,7 @@ var Node2 = class _Node2 {
             params[name2] = part;
             if (isLast) {
               this.#pushHandlerSets(handlerSets, child, method, params, node2.#params);
-              if (child.#children["*"]) {
-                this.#pushHandlerSets(
-                  handlerSets,
-                  child.#children["*"],
-                  method,
-                  params,
-                  node2.#params
-                );
-              }
+              if (child.#children["*"]) this.#pushHandlerSets(handlerSets, child.#children["*"], method, params, node2.#params);
             } else {
               child.#params = params;
               tempNodes.push(child);
@@ -2035,11 +1750,9 @@ var Node2 = class _Node2 {
       const shifted = curNodesQueue.shift();
       curNodes = shifted ? tempNodes.concat(shifted) : tempNodes;
     }
-    if (handlerSets[1]) {
-      handlerSets.sort((a, b) => {
-        return a.score - b.score;
-      });
-    }
+    if (handlerSets[1]) handlerSets.sort((a, b) => {
+      return a.score - b.score;
+    });
     return [handlerSets.map(({ handler, params }) => [handler, params])];
   }
 };
@@ -2047,11 +1760,9 @@ var Node2 = class _Node2 {
 // node_modules/hono/dist/router/trie-router/router.js
 var TrieRouter = class {
   name = "TrieRouter";
-  #node = new Node2();
+  #node = new Node3();
   add(method, path, handler) {
-    for (const result of checkOptionalParameter(path) || [path]) {
-      this.#node.insert(method, result, handler);
-    }
+    for (const result of checkOptionalParameter(path) || [path]) this.#node.insert(method, result, handler);
   }
   match(method, path) {
     return this.#node.search(method, path);
@@ -2059,17 +1770,15 @@ var TrieRouter = class {
 };
 
 // node_modules/hono/dist/hono.js
-var Hono2 = class extends Hono {
+var Hono3 = class extends Hono {
   /**
-   * Creates an instance of the Hono class.
-   *
-   * @param options - Optional configuration options for the Hono instance.
-   */
+  * Creates an instance of the Hono class.
+  *
+  * @param options - Optional configuration options for the Hono instance.
+  */
   constructor(options = {}) {
     super(options);
-    this.router = options.router ?? new SmartRouter({
-      routers: [new RegExpRouter(), new TrieRouter()]
-    });
+    this.router = options.router ?? new SmartRouter({ routers: [new RegExpRouter(), new TrieRouter()] });
   }
 };
 
@@ -2077,7 +1786,15 @@ var Hono2 = class extends Hono {
 var cors = (options) => {
   const opts = {
     origin: "*",
-    allowMethods: ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH", "QUERY"],
+    allowMethods: [
+      "GET",
+      "HEAD",
+      "PUT",
+      "POST",
+      "DELETE",
+      "PATCH",
+      "QUERY"
+    ],
     allowHeaders: [],
     exposeHeaders: [],
     ...options
@@ -2086,58 +1803,35 @@ var cors = (options) => {
   const allowHeadersStr = opts.allowHeaders?.length ? opts.allowHeaders.join(",") : void 0;
   const findAllowOrigin = ((optsOrigin) => {
     if (typeof optsOrigin === "string") {
-      if (optsOrigin === "*") {
-        return () => optsOrigin;
-      } else {
-        return (origin) => optsOrigin === origin ? origin : null;
-      }
-    } else if (typeof optsOrigin === "function") {
-      return optsOrigin;
-    } else {
-      return (origin) => optsOrigin.includes(origin) ? origin : null;
-    }
+      if (optsOrigin === "*") return () => optsOrigin;
+      else return (origin) => optsOrigin === origin ? origin : null;
+    } else if (typeof optsOrigin === "function") return optsOrigin;
+    else return (origin) => optsOrigin.includes(origin) ? origin : null;
   })(opts.origin);
   const findAllowMethods = ((optsAllowMethods) => {
-    if (typeof optsAllowMethods === "function") {
-      return async (origin, c) => (await optsAllowMethods(origin, c)).join(",");
-    } else if (Array.isArray(optsAllowMethods)) {
+    if (typeof optsAllowMethods === "function") return async (origin, c) => (await optsAllowMethods(origin, c)).join(",");
+    else if (Array.isArray(optsAllowMethods)) {
       const methodsStr = optsAllowMethods.join(",");
       return () => methodsStr;
-    } else {
-      return () => "";
-    }
+    } else return () => "";
   })(opts.allowMethods);
   return async function cors2(c, next) {
     function set2(key, value) {
       c.res.headers.set(key, value);
     }
     const allowOrigin = await findAllowOrigin(c.req.header("origin") || "", c);
-    if (allowOrigin) {
-      set2("Access-Control-Allow-Origin", allowOrigin);
-    }
-    if (opts.credentials) {
-      set2("Access-Control-Allow-Credentials", "true");
-    }
-    if (exposeHeadersStr) {
-      set2("Access-Control-Expose-Headers", exposeHeadersStr);
-    }
+    if (allowOrigin) set2("Access-Control-Allow-Origin", allowOrigin);
+    if (opts.credentials) set2("Access-Control-Allow-Credentials", "true");
+    if (exposeHeadersStr) set2("Access-Control-Expose-Headers", exposeHeadersStr);
     if (c.req.method === "OPTIONS") {
-      if (opts.origin !== "*") {
-        c.res.headers.append("Vary", "Origin");
-      }
-      if (opts.maxAge != null) {
-        set2("Access-Control-Max-Age", opts.maxAge.toString());
-      }
+      if (opts.origin !== "*") c.res.headers.append("Vary", "Origin");
+      if (opts.maxAge != null) set2("Access-Control-Max-Age", opts.maxAge.toString());
       const allowMethods = await findAllowMethods(c.req.header("origin") || "", c);
-      if (allowMethods) {
-        set2("Access-Control-Allow-Methods", allowMethods);
-      }
+      if (allowMethods) set2("Access-Control-Allow-Methods", allowMethods);
       let headersStr = allowHeadersStr;
       if (!headersStr) {
         const requestHeaders = c.req.header("Access-Control-Request-Headers");
-        if (requestHeaders) {
-          headersStr = requestHeaders.split(",").map((h) => h.trim()).join(",");
-        }
+        if (requestHeaders) headersStr = requestHeaders.split(",").map((h) => h.trim()).join(",");
       }
       if (headersStr) {
         set2("Access-Control-Allow-Headers", headersStr);
@@ -2152,9 +1846,7 @@ var cors = (options) => {
       });
     }
     await next();
-    if (opts.origin !== "*") {
-      c.header("Vary", "Origin", { append: true });
-    }
+    if (opts.origin !== "*") c.header("Vary", "Origin", { append: true });
   };
 };
 
@@ -2547,8 +2239,8 @@ function convertKeysToCamelCase(obj) {
   return converted;
 }
 var HttpClient = class {
-  authUrl = "https://blink.new";
-  coreUrl = "https://core.blink.new";
+  authUrl;
+  coreUrl;
   projectId;
   publishableKey;
   secretKey;
@@ -2557,6 +2249,8 @@ var HttpClient = class {
   getValidToken;
   forceRefreshToken;
   constructor(config2, getToken, getValidToken, forceRefreshToken) {
+    this.authUrl = config2.auth?.authUrl || "https://blink.new";
+    this.coreUrl = config2.auth?.coreUrl || "https://core.blink.new";
     this.projectId = config2.projectId;
     this.publishableKey = config2.publishableKey;
     this.secretKey = config2.secretKey || config2.serviceToken;
@@ -3550,6 +3244,9 @@ function getSessionStorage() {
     return null;
   }
 }
+var SESSION_REJECTION_STATUSES = /* @__PURE__ */ new Set([400, 401, 403, 404]);
+var REFRESH_RETRY_COOLDOWN_MS = 5e3;
+var sessionTag = (tokens) => (tokens.refresh_token || tokens.access_token).slice(-16);
 var BlinkAuth = class {
   config;
   authConfig;
@@ -3563,6 +3260,7 @@ var BlinkAuth = class {
   isInitialized = false;
   storage;
   refreshPromise = null;
+  refreshServerErrorAt = 0;
   constructor(config2) {
     this.config = config2;
     if (!config2.projectId) {
@@ -3699,14 +3397,17 @@ var BlinkAuth = class {
         });
         this.authState.tokens = storedTokens;
         console.log("\u{1F527} Tokens set in auth state, refresh token available:", !!this.authState.tokens?.refresh_token);
-        const isValid = await this.validateStoredTokens(storedTokens);
-        if (isValid) {
+        const check2 = await this.validateStoredTokens(storedTokens);
+        if (check2 === "valid") {
           console.log("\u2705 Auth initialization complete (from storage)");
           return;
-        } else {
-          console.log("\u{1F504} Stored tokens invalid, clearing...");
-          this.clearTokens();
         }
+        if (check2 === "unreachable") {
+          await this.restoreSessionOffline(storedTokens);
+          return;
+        }
+        console.log("\u{1F504} Stored tokens invalid, clearing...");
+        this.clearTokens();
       }
       console.log("\u274C No tokens found");
       if (this.config.authRequired && hasWindowLocation()) {
@@ -3827,18 +3528,17 @@ var BlinkAuth = class {
       }
       return null;
     }
-    const refreshed = await this.refreshToken();
-    if (refreshed) {
+    const check2 = await this.refreshSession();
+    if (check2 === "valid") {
       console.log("\u2705 Token refreshed successfully");
       return this.authState.tokens?.access_token || null;
-    } else {
-      console.log("\u274C Token refresh failed");
-      this.clearTokens();
-      if (this.config.authRequired) {
-        this.redirectToAuth();
-      }
-      return null;
     }
+    if (check2 === "unreachable") {
+      console.warn("\u26A0\uFE0F Auth server unreachable during refresh; keeping the session");
+      return this.authState.tokens?.access_token ?? null;
+    }
+    console.log("\u274C Token refresh rejected");
+    return null;
   }
   /**
    * Fetch current user profile from API
@@ -3884,8 +3584,11 @@ var BlinkAuth = class {
       });
       if (!response.ok) {
         if (response.status === 401) {
-          const refreshed = await this.refreshToken();
-          if (refreshed) {
+          const check2 = await this.refreshSession();
+          if (check2 === "unreachable") {
+            throw new BlinkAuthError("NETWORK_ERROR", "Network error: auth server unreachable during token refresh");
+          }
+          if (check2 === "valid") {
             token = this.getToken();
             if (token) {
               const retryResponse = await fetch(`${this.authUrl}/api/auth/me`, {
@@ -3901,6 +3604,9 @@ var BlinkAuth = class {
                   user: user2
                 });
                 return user2;
+              }
+              if (!SESSION_REJECTION_STATUSES.has(retryResponse.status)) {
+                throw new BlinkAuthError("NETWORK_ERROR", `Failed to fetch user: ${retryResponse.status} ${retryResponse.statusText}`);
               }
             }
           }
@@ -5047,12 +4753,22 @@ var BlinkAuth = class {
    * Refresh access token using refresh token
    */
   async refreshToken() {
+    return await this.refreshSession() === "valid";
+  }
+  /**
+   * Renew the session with the refresh token. A `rejected` answer has already signed
+   * the user out; `unreachable` leaves the session untouched.
+   */
+  async refreshSession() {
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
     const refreshToken = this.authState.tokens?.refresh_token;
     if (!refreshToken) {
-      return false;
+      return "rejected";
+    }
+    if (Date.now() - this.refreshServerErrorAt < REFRESH_RETRY_COOLDOWN_MS) {
+      return "unreachable";
     }
     this.refreshPromise = this.performTokenRefresh(refreshToken);
     try {
@@ -5087,26 +4803,31 @@ var BlinkAuth = class {
         })
       });
       if (!response.ok) {
-        if (response.status === 401) {
-          this.clearTokens();
-          if (this.config.authRequired) {
-            this.redirectToAuth();
-          }
+        if (!SESSION_REJECTION_STATUSES.has(response.status)) {
+          console.warn(`\u26A0\uFE0F Token refresh unavailable (${response.status}); keeping the session`);
+          this.refreshServerErrorAt = Date.now();
+          return "unreachable";
         }
-        return false;
+        this.clearTokens();
+        if (this.config.authRequired) {
+          this.redirectToAuth();
+        }
+        return "rejected";
       }
       const data = await response.json();
+      const current = this.authState.user;
+      const fallbackUser = current && current.id === data.user?.id ? current : data.user || null;
       await this.setTokens({
         access_token: data.access_token,
         refresh_token: data.refresh_token,
         token_type: data.token_type,
         expires_in: data.expires_in,
         refresh_expires_in: data.refresh_expires_in
-      }, true);
-      return true;
+      }, true, void 0, fallbackUser);
+      return "valid";
     } catch (error62) {
-      console.error("Token refresh failed:", error62);
-      return false;
+      console.warn("\u26A0\uFE0F Token refresh failed; keeping the session:", error62);
+      return "unreachable";
     }
   }
   /**
@@ -5133,22 +4854,7 @@ var BlinkAuth = class {
       console.log("\u{1F50D} Validating stored tokens...");
       if (this.isAccessTokenExpired()) {
         console.log("\u23F0 Access token expired based on timestamp, attempting refresh...");
-        if (!tokens.refresh_token) {
-          console.log("\u274C No refresh token available");
-          return false;
-        }
-        if (this.isRefreshTokenExpired()) {
-          console.log("\u274C Refresh token also expired");
-          return false;
-        }
-        const refreshed = await this.refreshToken();
-        if (refreshed) {
-          console.log("\u2705 Token refreshed successfully during validation");
-          return true;
-        } else {
-          console.log("\u274C Token refresh failed during validation");
-          return false;
-        }
+        return this.renewStoredSession(tokens);
       }
       const response = await fetch(`${this.authUrl}/api/auth/me`, {
         headers: {
@@ -5164,32 +4870,54 @@ var BlinkAuth = class {
           isAuthenticated: true,
           isLoading: false
         });
+        await this.rememberUser(user, tokens);
         console.log("\u2705 Stored tokens are valid, user authenticated");
-        return true;
-      } else if (response.status === 401 && tokens.refresh_token) {
-        console.log("\u{1F504} Access token expired (server validation), attempting refresh...");
-        if (this.isRefreshTokenExpired()) {
-          console.log("\u274C Refresh token expired");
-          return false;
-        }
-        const refreshed = await this.refreshToken();
-        if (refreshed) {
-          console.log("\u2705 Token refreshed successfully after server validation");
-          return true;
-        } else {
-          console.log("\u274C Token refresh failed after server validation");
-          return false;
-        }
-      } else {
-        console.log("\u274C Token validation failed:", response.status, response.statusText);
-        return false;
+        return "valid";
       }
+      if (response.status === 401) {
+        console.log("\u{1F504} Access token expired (server validation), attempting refresh...");
+        return this.renewStoredSession(tokens);
+      }
+      if (SESSION_REJECTION_STATUSES.has(response.status)) {
+        console.log("\u274C Token validation rejected:", response.status, response.statusText);
+        return "rejected";
+      }
+      console.warn(`\u26A0\uFE0F Token validation unavailable (${response.status}); keeping the session`);
+      return "unreachable";
     } catch (error62) {
-      console.log("\u{1F4A5} Error validating tokens:", error62);
-      return false;
+      console.warn("\u26A0\uFE0F Error validating tokens; keeping the session:", error62);
+      return "unreachable";
     }
   }
-  async setTokens(tokens, persist, knownUser) {
+  /** Refresh a stored session whose access token is no longer accepted. */
+  async renewStoredSession(tokens) {
+    if (!tokens.refresh_token) {
+      console.log("\u274C No refresh token available");
+      return "rejected";
+    }
+    if (this.isRefreshTokenExpired()) {
+      console.log("\u274C Refresh token expired");
+      return "rejected";
+    }
+    const check2 = await this.refreshSession();
+    console.log(check2 === "valid" ? "\u2705 Token refreshed successfully during validation" : `\u274C Token refresh ${check2} during validation`);
+    return check2;
+  }
+  /**
+   * The auth server could not be reached at startup. Keep the stored session and the
+   * last user it belonged to instead of signing out; the next request re-checks it.
+   */
+  async restoreSessionOffline(tokens) {
+    const user = await this.getRememberedUser(tokens);
+    console.warn("\u26A0\uFE0F Auth server unreachable at startup; keeping the stored session", { hasRememberedUser: !!user });
+    this.updateAuthState({
+      user,
+      tokens,
+      isAuthenticated: !!user,
+      isLoading: false
+    });
+  }
+  async setTokens(tokens, persist, knownUser, fallbackUser = null) {
     const tokensWithTimestamp = {
       ...tokens,
       issued_at: tokens.issued_at || Math.floor(Date.now() / 1e3)
@@ -5240,15 +4968,20 @@ var BlinkAuth = class {
           });
         } else {
           console.log("\u274C Failed to fetch user data:", await response.text());
+          if (!SESSION_REJECTION_STATUSES.has(response.status)) user = fallbackUser;
         }
       } catch (error62) {
         console.log("\u{1F4A5} Error fetching user data:", error62);
+        user = fallbackUser;
       }
     } else {
       console.log("\u2705 Using known user data (skipping /api/auth/me):", {
         id: user?.id,
         email: user?.email
       });
+    }
+    if (persist) {
+      await this.rememberUser(user, tokensWithTimestamp);
     }
     this.updateAuthState({
       user,
@@ -5263,22 +4996,50 @@ var BlinkAuth = class {
     });
   }
   clearTokens() {
-    try {
-      const result = this.storage.removeItem(this.getStorageKey("tokens"));
-      if (result instanceof Promise) {
-        result.catch((error62) => {
-          console.log("\u{1F4A5} Error clearing tokens from storage:", error62);
-        });
+    for (const suffix of ["tokens", "user"]) {
+      try {
+        const result = this.storage.removeItem(this.getStorageKey(suffix));
+        if (result instanceof Promise) {
+          result.catch((error62) => {
+            console.log("\u{1F4A5} Error clearing auth data from storage:", error62);
+          });
+        }
+      } catch (error62) {
+        console.log("\u{1F4A5} Error clearing auth data:", error62);
       }
-    } catch (error62) {
-      console.log("\u{1F4A5} Error clearing tokens:", error62);
     }
+    this.refreshServerErrorAt = 0;
     this.updateAuthState({
       user: null,
       tokens: null,
       isAuthenticated: false,
       isLoading: false
     });
+  }
+  /**
+   * Persist the signed-in user, tagged with the session it belongs to, so a session restored
+   * while offline still knows who it belongs to. A user is only ever restored with that session.
+   */
+  async rememberUser(user, tokens) {
+    try {
+      if (!user) {
+        await this.storage.removeItem(this.getStorageKey("user"));
+        return;
+      }
+      await this.storage.setItem(this.getStorageKey("user"), JSON.stringify({ session: sessionTag(tokens), user }));
+    } catch (error62) {
+      console.log("\u{1F4A5} Error remembering user:", error62);
+    }
+  }
+  async getRememberedUser(tokens) {
+    try {
+      const stored = await this.storage.getItem(this.getStorageKey("user"));
+      const remembered = stored ? JSON.parse(stored) : null;
+      return remembered?.session === sessionTag(tokens) ? remembered.user : null;
+    } catch (error62) {
+      console.log("\u{1F4A5} Error reading remembered user:", error62);
+      return null;
+    }
   }
   async getStoredTokens() {
     if (isWeb && this.isIframe && this.parentWindowTokens) {
@@ -8251,22 +8012,33 @@ var BlinkAnalyticsImpl = class {
   queue = [];
   timer = null;
   enabled = true;
-  userId = null;
-  userEmail = null;
+  started = false;
   hasTrackedPageview = false;
   utmParams = {};
   persistedAttribution = {};
-  constructor(httpClient, projectId) {
+  constructor(httpClient, projectId, options = {}) {
     this.httpClient = httpClient;
     this.projectId = projectId;
-    if (!isWeb) {
+    if (!isWeb || options.enabled === false || this.visitorOptedOut()) {
       this.enabled = false;
       return;
     }
-    if (navigator.doNotTrack === "1") {
-      this.enabled = false;
-      return;
+    this.start();
+  }
+  visitorOptedOut() {
+    return navigator.doNotTrack === "1" || navigator.globalPrivacyControl === true || this.storedOptOut();
+  }
+  // Read on every check, so a disable() in another client or tab stops this one too.
+  storedOptOut() {
+    try {
+      return localStorage.getItem(this.getStorageKey("OptOut")) === "1";
+    } catch {
+      return false;
     }
+  }
+  start() {
+    if (this.started) return;
+    this.started = true;
     this.loadPersistedAttribution();
     this.captureUTMParams();
     this.loadQueue();
@@ -8287,16 +8059,25 @@ var BlinkAnalyticsImpl = class {
    * Log a custom analytics event
    */
   log(eventName, data = {}) {
-    if (!this.enabled || !isWeb) {
+    if (!isWeb || !this.isEnabled()) {
       return;
     }
     const event = this.buildEvent(eventName, data);
     this.enqueue(event);
   }
   /**
-   * Disable analytics tracking
+   * Stop tracking, drop queued events and stored IDs, and remember the opt-out on this device.
    */
   disable() {
+    this.stop();
+    this.queue = [];
+    try {
+      for (const key of ["Queue", "Session", "Attribution"]) localStorage.removeItem(this.getStorageKey(key));
+      localStorage.setItem(this.getStorageKey("OptOut"), "1");
+    } catch {
+    }
+  }
+  stop() {
     this.enabled = false;
     this.clearTimer();
   }
@@ -8304,7 +8085,7 @@ var BlinkAnalyticsImpl = class {
    * Cleanup analytics instance (remove from global tracking)
    */
   destroy() {
-    this.disable();
+    this.stop();
     if (typeof window !== "undefined") {
       window.__blinkAnalyticsInstances?.delete(this);
     }
@@ -8313,25 +8094,25 @@ var BlinkAnalyticsImpl = class {
    * Enable analytics tracking
    */
   enable() {
+    if (!isWeb) return;
     this.enabled = true;
+    try {
+      localStorage.removeItem(this.getStorageKey("OptOut"));
+    } catch {
+    }
+    this.start();
   }
   /**
    * Check if analytics is enabled
    */
   isEnabled() {
-    return this.enabled;
+    return this.enabled && !this.storedOptOut();
   }
-  /**
-   * Set the user ID for analytics events
-   */
-  setUserId(userId) {
-    this.userId = userId;
+  /** Deprecated no-op: identity is never sent. */
+  setUserId(_userId) {
   }
-  /**
-   * Set the user email for analytics events
-   */
-  setUserEmail(email4) {
-    this.userEmail = email4;
+  /** Deprecated no-op: identity is never sent. */
+  setUserEmail(_email2) {
   }
   /**
    * Clear persisted attribution data
@@ -8351,8 +8132,6 @@ var BlinkAnalyticsImpl = class {
       type,
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       project_id: this.projectId,
-      user_id: this.userId,
-      user_email: this.userEmail,
       session_id: sessionId,
       pathname: getLocationPathname(),
       referrer: getDocumentReferrer(),
@@ -8390,7 +8169,7 @@ var BlinkAnalyticsImpl = class {
   }
   async flush() {
     this.clearTimer();
-    if (this.queue.length === 0) {
+    if (!this.isEnabled() || this.queue.length === 0) {
       return;
     }
     const events = this.queue.slice(0, MAX_BATCH_SIZE);
@@ -8399,10 +8178,11 @@ var BlinkAnalyticsImpl = class {
     try {
       await this.httpClient.post(`/api/analytics/${this.projectId}/log`, { events });
     } catch (error62) {
+      if (!this.isEnabled()) return;
       this.queue = [...events, ...this.queue];
       this.persistQueue();
     }
-    if (this.queue.length > 0) {
+    if (this.isEnabled() && this.queue.length > 0) {
       this.timer = setTimeout(() => this.flush(), BATCH_TIMEOUT);
     }
   }
@@ -8448,7 +8228,7 @@ var BlinkAnalyticsImpl = class {
     try {
       const stored = localStorage.getItem(this.getStorageKey("Queue"));
       if (stored) {
-        this.queue = JSON.parse(stored);
+        this.queue = JSON.parse(stored).map(({ user_id, user_email, ...event }) => event);
         if (this.queue.length > 0) {
           this.timer = setTimeout(() => this.flush(), BATCH_TIMEOUT);
         }
@@ -9236,7 +9016,7 @@ var BlinkClientImpl = class {
     this.data = new BlinkDataImpl(this._httpClient, config2.projectId);
     this.realtime = new BlinkRealtimeImpl(this._httpClient, config2.projectId);
     this.notifications = new BlinkNotificationsImpl(this._httpClient);
-    this.analytics = new BlinkAnalyticsImpl(this._httpClient, config2.projectId);
+    this.analytics = new BlinkAnalyticsImpl(this._httpClient, config2.projectId, { enabled: config2.analytics !== false });
     this.connectors = new BlinkConnectorsImpl(this._httpClient);
     this.functions = new BlinkFunctionsImpl(
       this._httpClient,
@@ -9246,15 +9026,6 @@ var BlinkClientImpl = class {
     this.rag = new BlinkRAGImpl(this._httpClient);
     this.sandbox = new BlinkSandboxImpl(this._httpClient);
     this.queue = new BlinkQueueImpl(this._httpClient);
-    this.auth.onAuthStateChanged((state) => {
-      if (state.isAuthenticated && state.user) {
-        this.analytics.setUserId(state.user.id);
-        this.analytics.setUserEmail(state.user.email);
-      } else {
-        this.analytics.setUserId(null);
-        this.analytics.setUserEmail(null);
-      }
-    });
   }
 };
 function createClient(config2) {
@@ -29486,7 +29257,7 @@ async function createClinic(ctx, input2, master = false) {
 }
 
 // server/index.ts
-var app = new Hono2();
+var app = new Hono3();
 app.use("*", cors({ origin: "*", allowHeaders: ["Content-Type", "Authorization", "X-Clinic-Id"] }));
 app.onError((e, c) => {
   console.error("request failed", e.message);
